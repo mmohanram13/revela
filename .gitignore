@@ -1,0 +1,23 @@
+# Python related
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.whl
+*.egg
+*.egg-info/
+dist/
+build/
+*.venv
+uv/
+
+# macOS related
+.DS_Store
+
+# Chrome Extension related
+chrome-extension/build/
+chrome-extension/dist/
+chrome-extension/node_modules/
+*.crx
+*.pem
+*.zip

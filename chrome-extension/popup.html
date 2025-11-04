@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revela</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="images/logo.png" alt="Revela Logo" class="logo">
+      <h1>Revela</h1>
+    </div>
+    
+    <div class="content">
+      <p class="description">AI-powered chart and table analysis</p>
+      
+      <div class="actions">
+        <button id="analyzeBtn" class="btn-primary">
+          Analyze Current Page
+        </button>
+        
+        <button id="captureBtn" class="btn-secondary">
+          Capture Selection
+        </button>
+      </div>
+      
+      <div id="status" class="status hidden"></div>
+      
+      <div id="results" class="results hidden">
+        <h3>Analysis Results</h3>
+        <div id="resultsContent"></div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <a href="#" id="settingsLink">Settings</a>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

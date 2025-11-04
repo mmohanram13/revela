@@ -1,0 +1,21 @@
+{
+  "name": "revela-chrome-extension",
+  "version": "1.0.0",
+  "description": "AI-powered Chrome extension for analyzing charts and tables",
+  "scripts": {
+    "dev": "echo 'Development mode - load extension from chrome://extensions'",
+    "build": "echo 'No build step required for manifest v3'",
+    "lint": "eslint *.js"
+  },
+  "keywords": [
+    "chrome-extension",
+    "ai",
+    "chart-analysis",
+    "gemma"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.0.0"
+  }
+}
