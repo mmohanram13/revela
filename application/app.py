@@ -5,15 +5,36 @@ A clean, minimal UI for AI-powered chart and table analysis.
 import streamlit as st
 from PIL import Image
 import io
+import logging
+import os
+import base64
+from pathlib import Path
 
 from config import config
 from ollama_client import ollama_client
 
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.info("=== Revela Streamlit App Starting ===")
+logger.info(f"Environment: {config.environment}")
+logger.info(f"Ollama URL: {config.ollama_host}")
+
+# Get the absolute path to the images directory
+CURRENT_DIR = Path(__file__).parent
+LOGO_PATH = CURRENT_DIR / "images" / "logo.png"
+
+# Load logo as PIL Image for page icon
+try:
+    logo_image = Image.open(LOGO_PATH)
+    page_icon = logo_image
+except Exception as e:
+    logger.warning(f"Could not load logo for page icon: {e}")
+    page_icon = "🔍"
 
 # Page configuration
 st.set_page_config(
-    page_title="Revela - AI Insights",
-    page_icon="images/logo.png",
+    page_title="revela",
+    page_icon=page_icon,
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -21,15 +42,39 @@ st.set_page_config(
 # Custom CSS for minimal, clean UI
 st.markdown("""
     <style>
-    /* Main container */
-    .main {
-        padding-top: 2rem;
+    /* Hide Streamlit default header and menu */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Proper block container padding to prevent content cutoff */
+    .block-container {
+        padding-top: 2.5rem;
+        padding-bottom: 2rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
     
     /* Header styling */
     h1 {
         font-weight: 600;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.25rem;
+        margin-top: 0;
+        line-height: 1.2;
+    }
+    
+    /* Caption styling for subtitle */
+    .stCaptionContainer p {
+        font-size: 0.95rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+        line-height: 1.4;
+    }
+    
+    /* Logo and header alignment */
+    [data-testid="column"] {
+        display: flex;
+        align-items: center;
     }
     
     /* Alert box styling */
@@ -39,6 +84,7 @@ st.markdown("""
         background-color: #fff3cd;
         border: 1px solid #ffc107;
         margin-bottom: 1.5rem;
+        margin-top: 0;
     }
     
     .alert-box-success {
@@ -47,6 +93,7 @@ st.markdown("""
         background-color: #d4edda;
         border: 1px solid #28a745;
         margin-bottom: 1.5rem;
+        margin-top: 0;
     }
     
     /* Button styling */
@@ -66,14 +113,15 @@ st.markdown("""
     .stFileUploader {
         border-radius: 0.5rem;
     }
-    
-    /* Remove extra padding */
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-    }
     </style>
 """, unsafe_allow_html=True)
+
+
+def get_base64_image(image: Image.Image) -> str:
+    """Convert PIL Image to base64 string."""
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
 
 
 def check_extension_installed() -> bool:
@@ -128,13 +176,40 @@ def process_image(uploaded_file) -> Image.Image:
 def main():
     """Main application function."""
     
-    # Header
-    st.title("🔍 Revela")
-    st.caption("AI-powered chart and table analysis")
+    # Header with logo - elegant horizontal layout
+    try:
+        if LOGO_PATH.exists():
+            logo = Image.open(LOGO_PATH)
+            # Create elegant header with logo and text side by side
+            st.markdown(f"""
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                    <img src="data:image/png;base64,{get_base64_image(logo)}" 
+                         style="width: 80px; height: 80px; border-radius: 50%;" 
+                         alt="Revela Logo">
+                    <div>
+                        <h1 style="margin: 0; padding: 0; font-size: 3rem; font-weight: 600; line-height: 1;">revela</h1>
+                        <p style="margin: 0.25rem 0 0 0; padding: 0; color: #6c757d; font-size: 1rem;">AI-powered chart and table analysis</p>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            logger.warning(f"Logo not found at: {LOGO_PATH}")
+            st.markdown("# Revela")
+            st.caption("AI-powered chart and table analysis")
+    except Exception as e:
+        logger.warning(f"Could not load logo: {e}")
+        st.markdown("# Revela")
+        st.caption("AI-powered chart and table analysis")
     
     # Check Ollama connection
-    if not ollama_client.check_health():
-        st.error("⚠️ Cannot connect to Ollama service. Please check your configuration.")
+    logger.info("Performing Ollama health check...")
+    health_check_result = ollama_client.check_health()
+    logger.info(f"Health check result: {health_check_result}")
+    
+    if not health_check_result:
+        error_msg = f"⚠️ Cannot connect to Ollama service at {config.ollama_host}. Please check your configuration and logs."
+        logger.error(error_msg)
+        st.error(error_msg)
         st.stop()
     
     # Extension detection
@@ -186,7 +261,7 @@ def main():
     
     # Submit button
     st.markdown("---")
-    if st.button("🚀 Analyze", type="primary"):
+    if st.button("Analyze", type="primary"):
         if not prompt:
             st.warning("Please enter a question or analysis request.")
         else:

@@ -3,11 +3,19 @@ Configuration module for Revela Streamlit app.
 Handles environment variables and Cloud Run OIDC token generation.
 """
 import os
+import logging
 from typing import Optional
 from dotenv import load_dotenv
 import google.auth
 from google.auth.transport.requests import Request
 import google.oauth2.id_token
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +30,13 @@ class Config:
         self.ollama_model = os.getenv("OLLAMA_MODEL", "gemma3:12b-it-qat")
         self.streamlit_port = int(os.getenv("STREAMLIT_SERVER_PORT", "8501"))
         self.streamlit_address = os.getenv("STREAMLIT_SERVER_ADDRESS", "0.0.0.0")
+        
+        # Log configuration on initialization
+        logger.info(f"=== Configuration Initialized ===")
+        logger.info(f"Environment: {self.environment}")
+        logger.info(f"Ollama Host: {self.ollama_host}")
+        logger.info(f"Ollama Model: {self.ollama_model}")
+        logger.info(f"Is Production: {self.is_production}")
     
     @property
     def is_production(self) -> bool:
@@ -43,16 +58,19 @@ class Config:
         Returns None for local environment.
         """
         if self.is_local:
+            logger.info("Running in local mode, skipping authentication")
             return None
         
         try:
+            logger.info(f"Fetching OIDC token for target audience: {self.ollama_host}")
             # Get the OIDC token for Cloud Run to Cloud Run invocation
             auth_req = Request()
             target_audience = self.ollama_host
             id_token = google.oauth2.id_token.fetch_id_token(auth_req, target_audience)
+            logger.info("Successfully fetched OIDC token")
             return id_token
         except Exception as e:
-            print(f"Error fetching OIDC token: {e}")
+            logger.error(f"Error fetching OIDC token: {e}", exc_info=True)
             return None
     
     def get_headers(self) -> dict:
@@ -62,9 +80,15 @@ class Config:
         }
         
         if self.is_production:
+            logger.info("Production mode: Adding authentication header")
             token = self.get_auth_token()
             if token:
                 headers["Authorization"] = f"Bearer {token}"
+                logger.info("Authorization header added successfully")
+            else:
+                logger.warning("Failed to get auth token, proceeding without authentication")
+        else:
+            logger.info("Non-production mode: Skipping authentication")
         
         return headers
 

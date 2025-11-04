@@ -153,7 +153,7 @@ gcloud run deploy revela-app \
   --region europe-west4 \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars ENVIRONMENT=production,OLLAMA_SERVICE_URL=https://your-ollama-service.run.app,OLLAMA_MODEL=gemma3:12b-it-qat \
+  --set-env-vars ENVIRONMENT=production,OLLAMA_HOST=https://your-ollama-service.run.app,OLLAMA_MODEL=gemma3:12b-it-qat \
   --cpu 2 \
   --memory 2Gi \
   --timeout 300 \
@@ -189,7 +189,7 @@ Production environment variables in Cloud Run:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `ENVIRONMENT` | Deployment environment | `production` |
-| `OLLAMA_SERVICE_URL` | Ollama backend URL | `https://ollama.run.app` |
+| `OLLAMA_HOST` | Ollama backend URL | `https://ollama.run.app` |
 | `OLLAMA_MODEL` | Model to use | `gemma3:12b-it-qat` |
 | `STREAMLIT_SERVER_PORT` | Server port (auto-set) | `8080` |
 
@@ -260,7 +260,7 @@ This project follows Python best practices:
   ```bash
   curl http://localhost:11434/api/tags
   ```
-- **Production**: Verify `OLLAMA_SERVICE_URL` is correct and service is deployed
+- **Production**: Verify `OLLAMA_HOST` is correct and service is deployed
 - Check `.env` configuration matches your setup
 
 #### Import errors during local development
