@@ -11,6 +11,11 @@ build/
 *.venv
 uv/
 
+# Environment variables
+.env
+.env.local
+.env.production
+
 # macOS related
 .DS_Store
 

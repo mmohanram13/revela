@@ -63,13 +63,13 @@ This folder contains the necessary files to build and deploy the Ollama Gemma ap
    Use the Cloud Run developer proxy to test the service:
 
    ```bash
-   gcloud run services proxy ollama-gemma --port=8080
+   gcloud run services proxy ollama-gemma --port=11434
    ```
 
    In a separate terminal, send a request:
 
    ```bash
-   curl http://localhost:8080/api/generate -d '{
+   curl http://localhost:11434/api/generate -d '{
      "model": "gemma3:12b-it-qat",
      "prompt": "Why is the sky blue?",
      "stream": false
@@ -90,10 +90,10 @@ For more details, refer to the [official tutorial](https://cloud.google.com/run/
 
 2. **Run Ollama Locally**
 
-   Start the Ollama service with the `gemma3:12b-it-qat` model on port 8080:
+   Start the Ollama service with the `gemma3:12b-it-qat` model on default port:
 
    ```bash
-   ollama run gemma3:12b-it-qat --port 8080
+   ollama run gemma3:12b-it-qat
    ```
 
-   This will start the service locally and make it accessible on `http://localhost:8080`.
+   This will start the service locally and make it accessible on `http://localhost:11434`.
