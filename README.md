@@ -2,11 +2,11 @@
 
 > Right-click any chart or table on the web to get instant AI insights, powered by Gemma on Cloud Run
 
-Revela is a Chrome extension with a Streamlit web application that provides AI-powered analysis of charts and tables using Ollama and Google's Gemma models.
+Revela is a Chrome extension with a Flask web application that provides AI-powered analysis of charts and tables using Ollama and Google's Gemma models.
 
 ## 🚀 Quick Start
 
-### Streamlit App
+### Flask App
 
 ```bash
 # Quick start (recommended)
@@ -14,7 +14,7 @@ Revela is a Chrome extension with a Streamlit web application that provides AI-p
 
 # Or manually
 source .venv/bin/activate
-uv run streamlit run application/app.py
+uv run application/main.py
 ```
 
 Access the app at: http://localhost:8501
@@ -41,8 +41,8 @@ Access the app at: http://localhost:8501
 
 ```
 revela/
-├── application/           # Streamlit web application
-│   ├── app.py            # Main Streamlit app
+├── application/           # Flask web application
+│   ├── app.py            # Main Flask app
 │   ├── config.py         # Configuration management
 │   ├── ollama_client.py  # Ollama API client with auth
 │   ├── .env.example      # Environment template
@@ -64,7 +64,7 @@ revela/
 
 ## ✨ Features
 
-### Streamlit Web App
+### Flask Web App
 - 🔍 **Extension Detection**: Alerts if Chrome extension is not installed
 - 💬 **Text Prompts**: Ask questions about charts and tables
 - 🖼️ **Image Support**: Upload or paste images for analysis
@@ -76,7 +76,7 @@ revela/
 - 🖱️ **Right-click Context Menu**: Analyze any image on the web
 - 📊 **Chart & Table Detection**: Automatic visualization detection
 - 🎨 **Clean Popup UI**: Minimal, user-friendly interface
-- 🔗 **Backend Integration**: Seamlessly connects to Streamlit app
+- 🔗 **Backend Integration**: Seamlessly connects to Flask app
 - ⚡ **Fast & Lightweight**: Minimal resource usage
 
 ## 🛠️ Development Setup
@@ -98,7 +98,7 @@ uv venv
 source .venv/bin/activate
 
 # Install dependencies
-uv add streamlit python-dotenv pillow google-auth requests ollama watchdog
+uv sync
 ```
 
 ### Configuration
@@ -129,11 +129,11 @@ uv add streamlit python-dotenv pillow google-auth requests ollama watchdog
 ### Running Locally
 
 ```bash
-# Start the Streamlit app
+# Start the Flask app
 ./start-app.sh
 
 # Or manually
-uv run streamlit run application/app.py
+uv run application/main.py
 ```
 
 ## ☁️ Cloud Deployment
@@ -144,7 +144,7 @@ uv run streamlit run application/app.py
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install) installed and authenticated
 - Ollama backend deployed on Cloud Run (see [ollama-gemma/README.md](ollama-gemma/README.md))
 
-### Deploy Streamlit App to Cloud Run
+### Deploy Flask App to Cloud Run
 
 ```bash
 # Deploy from project root (where Dockerfile is located)
@@ -191,7 +191,8 @@ Production environment variables in Cloud Run:
 | `ENVIRONMENT` | Deployment environment | `production` |
 | `OLLAMA_HOST` | Ollama backend URL | `https://ollama.run.app` |
 | `OLLAMA_MODEL` | Model to use | `gemma3:12b-it-qat` |
-| `STREAMLIT_SERVER_PORT` | Server port (auto-set) | `8080` |
+| `SERVER_PORT` | Server port (auto-set) | `8080` |
+| `SERVER_ADDRESS` | Server address | `0.0.0.0` |
 
 ## 🔐 Authentication & Security
 
@@ -204,7 +205,7 @@ The application automatically handles authentication based on environment:
 
 ```
 ┌─────────────┐      ┌──────────────┐      ┌─────────────┐
-│   Browser   │─────▶│  Streamlit   │─────▶│   Ollama    │
+│   Browser   │─────▶│    Flask     │─────▶│   Ollama    │
 │             │      │     App      │      │   Backend   │
 │  (User)     │◀─────│ (Cloud Run)  │◀─────│ (Cloud Run) │
 └─────────────┘      └──────────────┘      └─────────────┘
@@ -248,12 +249,12 @@ This project follows Python best practices:
 | Create venv | `uv venv` |
 | Activate venv | `source .venv/bin/activate` |
 | Install packages | `uv add <package>` |
-| Run app | `uv run streamlit run application/app.py` |
+| Run app | `uv run application/main.py` |
 | Quick start | `./start-app.sh` |
 
 ## 🐛 Troubleshooting
 
-### Streamlit App Issues
+### Flask App Issues
 
 #### Cannot connect to Ollama service
 - **Local**: Ensure Ollama is running on `http://localhost:11434`
@@ -269,7 +270,7 @@ This project follows Python best practices:
 source .venv/bin/activate
 
 # Reinstall dependencies
-uv add streamlit python-dotenv pillow google-auth requests ollama watchdog
+uv sync
 ```
 
 #### Authentication errors in production
@@ -292,7 +293,7 @@ uv add streamlit python-dotenv pillow google-auth requests ollama watchdog
 3. Check the browser console for errors (F12)
 
 #### Cannot connect to backend
-- Verify the Streamlit app is running at `http://localhost:8501`
+- Verify the Flask app is running at `http://localhost:8501`
 - Check extension settings for correct API endpoint
 - Ensure CORS is properly configured
 
@@ -320,4 +321,4 @@ Part of the Revela project for AI-powered web content analysis.
 
 ---
 
-**Built with** ❤️ using Streamlit, Ollama, and Google Gemma
+**Built using Flask, Ollama, and Google Gemma**

@@ -1,7 +1,7 @@
 #!/bin/bash
-# Quick start script for Revela Streamlit app
+# Quick start script for Revela Flask app
 
-echo "🚀 Starting Revela Streamlit App..."
+echo "🚀 Starting Revela Flask App..."
 
 # Check if .env exists
 if [ ! -f "application/.env" ]; then
@@ -22,11 +22,11 @@ fi
 
 # Install/update dependencies
 echo "📦 Installing dependencies..."
-uv add streamlit python-dotenv pillow google-auth requests ollama watchdog
+uv sync
 
 # Run the app
 echo ""
-echo "✓ Starting Streamlit app..."
+echo "✓ Starting Flask app..."
 echo "🌐 Access the app at: http://localhost:8501"
 echo ""
-uv run streamlit run application/app.py
+uv run application/main.py

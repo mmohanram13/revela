@@ -1,5 +1,5 @@
 """
-Configuration module for Revela Streamlit app.
+Configuration module for Revela Flask app.
 Handles environment variables and Cloud Run OIDC token generation.
 """
 import os
@@ -28,8 +28,8 @@ class Config:
         self.environment = os.getenv("ENVIRONMENT", "local")
         self.ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         self.ollama_model = os.getenv("OLLAMA_MODEL", "gemma3:12b-it-qat")
-        self.streamlit_port = int(os.getenv("STREAMLIT_SERVER_PORT", "8501"))
-        self.streamlit_address = os.getenv("STREAMLIT_SERVER_ADDRESS", "0.0.0.0")
+        self.server_port = int(os.getenv("SERVER_PORT", "8501"))
+        self.server_address = os.getenv("SERVER_ADDRESS", "0.0.0.0")
         
         # Log configuration on initialization
         logger.info(f"=== Configuration Initialized ===")

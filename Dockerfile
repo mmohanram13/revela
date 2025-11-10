@@ -22,18 +22,16 @@ RUN uv pip install --system --no-cache .
 
 # Set environment variables for Cloud Run
 ENV ENVIRONMENT=production
-ENV STREAMLIT_SERVER_PORT=8080
-ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
-ENV STREAMLIT_SERVER_HEADLESS=true
-ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
-ENV STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=true
+ENV SERVER_PORT=8080
+ENV SERVER_ADDRESS=0.0.0.0
 
 # Expose port (Cloud Run routes HTTPS/443 to this port internally)
 EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/_stcore/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
-# Run the Streamlit app
-CMD ["streamlit", "run", "application/app.py", "--server.port=8080", "--server.address=0.0.0.0"]
+# Run the Flask app using gunicorn for production
+RUN uv pip install --system --no-cache gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "application.app:app"]

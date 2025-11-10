@@ -1,5 +1,5 @@
 """
-Ollama client module for Revela Streamlit app.
+Ollama client module for Revela app.
 Handles communication with Ollama API with environment-based authentication.
 """
 import base64

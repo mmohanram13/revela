@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>revela - Transform data into understanding</title>
+    <link rel="icon" type="image/png" href="data:image/png;base64,{{ logo_base64 }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header with logo -->
+        <header class="header">
+            {% if logo_base64 %}
+            <div class="logo-container">
+                <img src="data:image/png;base64,{{ logo_base64 }}" alt="Revela Logo" class="logo">
+                <div class="title-container">
+                    <h1>revela</h1>
+                    <p class="subtitle">Transform data into understanding</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="title-container">
+                <h1>revela</h1>
+                <p class="subtitle">Transform data into understanding</p>
+            </div>
+            {% endif %}
+        </header>
+
+        <hr>
+
+        <!-- Ollama Health Status -->
+        {% if not ollama_healthy %}
+        <div class="alert alert-error">
+            <strong>⚠️ Cannot connect to Ollama service</strong><br>
+            Please check your configuration at {{ ollama_host }}
+        </div>
+        {% endif %}
+
+        <!-- Extension Detection Alert -->
+        <div id="extension-alert" class="alert alert-warning">
+            <strong>⚠️ Extension Not Detected</strong><br>
+            Please install the <strong>Revela Chrome Extension</strong> to get AI insights 
+            directly on any chart or table while browsing.
+            <br><br>
+            <button id="confirm-extension-btn" class="btn btn-secondary">
+                ✓ I have installed the extension
+            </button>
+        </div>
+
+        <!-- Extension Confirmed Message -->
+        <div id="extension-confirmed" class="alert alert-success" style="display: none;">
+            <strong>✓ Extension Detected</strong><br>
+            You're all set! Use the extension while browsing or analyze images below.
+        </div>
+
+        <hr>
+
+        <!-- Main Analysis Form -->
+        <div class="analysis-section">
+            <h2>Analyze Chart or Table</h2>
+            
+            <form id="analysis-form">
+                <!-- Prompt Input -->
+                <div class="form-group">
+                    <label for="prompt">Enter your question or analysis request:</label>
+                    <textarea 
+                        id="prompt" 
+                        name="prompt" 
+                        rows="5" 
+                        placeholder="e.g., What trends do you see in this chart? Summarize this table data..."
+                        required
+                    ></textarea>
+                </div>
+
+                <!-- Image Upload Section -->
+                <div class="form-group">
+                    <h3>Add Image (Optional)</h3>
+                    <div class="upload-container">
+                        <div class="upload-method">
+                            <label for="image-upload" class="upload-label">
+                                <strong>Upload Image</strong>
+                            </label>
+                            <input 
+                                type="file" 
+                                id="image-upload" 
+                                name="image" 
+                                accept="image/png,image/jpeg,image/jpg"
+                            >
+                            <div class="upload-hint">
+                                or paste image (Ctrl+V / Cmd+V)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Preview -->
+                <div id="image-preview-container" style="display: none;">
+                    <h4>Uploaded Image:</h4>
+                    <div class="image-preview">
+                        <img id="image-preview" src="" alt="Preview">
+                        <button type="button" id="remove-image" class="btn btn-small">Remove</button>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary" id="analyze-btn">
+                    Analyze
+                </button>
+            </form>
+
+            <!-- Response Section -->
+            <div id="response-section" style="display: none;">
+                <hr>
+                <h3>Analysis Result:</h3>
+                <div id="response-content" class="response-box"></div>
+                <div id="loading-indicator" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <span>Analyzing...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <hr>
+        <footer class="footer">
+            <p>Running in <strong>{{ environment }}</strong> mode | Model: <strong>{{ model }}</strong></p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
