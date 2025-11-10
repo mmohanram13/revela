@@ -189,7 +189,7 @@ body {
 }
 
 .revela-user-message {
-  background: #667eea;
+  background: #14264d;
   color: white;
   align-self: flex-end;
   border-bottom-right-radius: 4px;
@@ -452,12 +452,12 @@ body {
 }
 
 .revela-chat-input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #14264d;
+  box-shadow: 0 0 0 3px rgba(20, 38, 77, 0.1);
 }
 
 .revela-send-btn {
-  background: #667eea;
+  background: #14264d;
   color: white;
   border: none;
   padding: 12px 24px;
@@ -475,9 +475,9 @@ body {
 }
 
 .revela-send-btn:hover {
-  background: #5568d3;
+  background: #0d1a36;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(20, 38, 77, 0.3);
 }
 
 .revela-send-btn:active {
@@ -593,11 +593,11 @@ body {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  background: #667eea;
+  background: #14264d;
   color: white;
   padding: 14px 20px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(20, 38, 77, 0.3);
   z-index: 2147483647;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
@@ -694,3 +694,83 @@ body {
     opacity: 1;
   }
 }
+
+/* Data Table Styles */
+.revela-data-message {
+  background: #f8fafc !important;
+  border-left: 3px solid #3b82f6 !important;
+  padding: 12px !important;
+  margin: 8px 0 !important;
+}
+
+.revela-data-table-container {
+  overflow-x: auto;
+  margin-top: 8px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.revela-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: white;
+}
+
+.revela-data-table thead {
+  background: #f3f4f6;
+}
+
+.revela-data-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #d1d5db;
+  white-space: nowrap;
+}
+
+.revela-data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #1f2937;
+}
+
+.revela-data-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.revela-data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.revela-data-note {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* Chart Styles */
+.revela-chart-message {
+  margin: 12px 0 !important;
+  padding: 12px !important;
+  background: #f8fafc !important;
+  border-left: 3px solid #10b981 !important;
+  border-radius: 6px;
+}
+
+.revela-chart-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.revela-chart-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+

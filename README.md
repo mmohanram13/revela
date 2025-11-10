@@ -1,79 +1,197 @@
-# Revela
+# revela - Data Copilot for the Web
 
-> AI-powered insights for tables and charts on any webpage — instant analysis with hover icons and deep conversational exploration
+AI-powered data analysis for the web. Analyze tables and charts on any webpage with instant insights and interactive exploration.
 
-Revela is a Chrome extension with a Cloud Run backend that provides ephemeral, privacy-first AI analysis of data visualizations using Google's Gemma models.
+## Overview
 
-## 🏗️ System Architecture
+Revela is a Chrome extension with a cloud-native backend that provides ephemeral, privacy-first AI analysis of data visualizations using Google's Gemma 3 models. Simply hover over any table or chart while browsing to get instant insights or start a conversational analysis.
 
-Revela uses a **stateless, ephemeral architecture** designed for Cloud Run:
+## How Revela Helps
 
-### Core Components
+- **Instant Analysis**: Hover over any table or chart on a webpage to see AI-generated insights
+- **Deep Exploration**: Ask questions and perform complex analytics through an interactive chat interface
+- **Chart Generation**: Automatically generate visualizations from data using matplotlib
+- **Privacy-First**: Ephemeral sessions with no persistent storage of user data
+- **Zero Setup**: Works directly in your browser with any public webpage
 
-1. **Chrome Extension (Frontend)**
-   - Detects tables and chart images on web pages
-   - Shows hover icons (using logo.png only) beside analyzable elements
-   - Offers two interaction modes:
-     - **Quick Insights**: Instant summary of data
-     - **Deep Analyse**: Interactive sidebar chat
+## Technologies Used
 
-2. **Backend API (Cloud Run - CPU)**
-   - Manages ephemeral analysis sessions
-   - In-memory DuckDB for table processing
-   - Orchestrates LLM queries
-   - Auto-cleanup after 30 min inactivity
+- **Google Cloud Run**: Serverless deployment with auto-scaling (CPU and GPU instances)
+- **Gemma 3 12B**: Google's 12B parameter language model for data analysis
+- **Ollama**: Local LLM inference server
+- **Flask**: Python web framework for API layer
+- **Polars**: High-performance DataFrame library for data processing
+- **Python**: Backend service implementation
+- **JavaScript**: Chrome extension and frontend
+- **Chrome Extension API**: Browser integration
 
-3. **Ollama Service** (Optional separate deployment)
-   - Ollama + Gemma model inference
-   - Can be GPU-accelerated or use local instance
-   - Stateless request handling
+## System Components
 
-### Key Advantages
+### 1. Chrome Extension (Frontend)
 
-✅ **Privacy-First**: No persistent storage of user data  
-✅ **Auto-Scaling**: Scales to zero when idle  
-✅ **Cloud Native**: Built for Google Cloud Run  
-✅ **Simple Deployment**: Source-based deployment, no build configs needed  
-✅ **Ephemeral Sessions**: Clean state for every analysis
+The browser-side component that:
+- Detects analyzable tables and images on web pages
+- Displays hover icons beside data elements
+- Provides two interaction modes:
+  - **Quick Insights**: Instant AI summary
+  - **Deep Analyze**: Interactive chat sidebar
+- Extracts and sends data to the backend API
+- Manages user sessions
 
-## 🚀 Quick Start
+### 2. Service Layer (Backend API)
+
+Flask-based API service running on Google Cloud Run (CPU):
+- Manages ephemeral analysis sessions (30-minute timeout)
+- Processes HTML tables and images
+- Orchestrates LLM queries to Ollama service
+- Executes Polars-based data queries
+- Generates matplotlib charts
+- Auto-cleanup of inactive sessions
+- **Resources**: 2 vCPU, 2 GiB RAM, scales 0-10 instances
+
+### 3. Ollama LLM Container
+
+Inference service running on Google Cloud Run (GPU):
+- Hosts Gemma 3 (12B parameter) model
+- Handles vision analysis for charts and images
+- Processes natural language queries
+- GPU-accelerated inference with NVIDIA L4
+- **Resources**: 4 vCPU, 8 GiB RAM, 1x NVIDIA L4 GPU, scales 0-5 instances
+
+## Architecture
+
+```
+┌─────────────────────┐
+│  Chrome Extension   │  Browser-side detection and UI
+└──────────┬──────────┘
+           │ HTTPS/JSON
+           ▼
+┌─────────────────────┐
+│   Backend API       │  Flask service on Cloud Run (CPU)
+│   (revela-app)      │  - Session management
+│                     │  - Data processing (Polars)
+│   - Session Mgmt    │  - Chart generation
+│   - Polars queries  │  - LLM orchestration
+│   - Chart gen       │
+└──────────┬──────────┘
+           │ Internal HTTPS
+           ▼
+┌─────────────────────┐
+│  Ollama Service     │  LLM inference on Cloud Run (GPU)
+│  (ollama-gemma)     │  - Gemma 3 model
+│                     │  - Vision analysis
+│   - Gemma 3 12B     │  - Natural language processing
+│   - GPU inference   │
+└─────────────────────┘
+```
+
+### Cloud Run Advantages
+
+- **Auto-scaling**: Scales to zero when idle, reducing costs
+- **Serverless**: No infrastructure management required
+- **GPU Support**: Native support for GPU-accelerated inference
+- **Source Deployment**: Deploy directly from source code
+- **Service Authentication**: Built-in IAM for secure service-to-service communication
+
+## Use Cases
+
+### 1. Quick Data Exploration
+
+Hover over a table on Wikipedia, financial sites, or research papers to instantly understand trends, outliers, and key statistics without leaving the page.
+
+### 2. Comparative Analysis
+
+Ask questions like "Which country has the highest GDP?" or "Compare the top 5 values" to get immediate answers with supporting data.
+
+### 3. Chart Generation
+
+Request visualizations directly from table data: "Show me a bar chart of GDP by country" to generate matplotlib charts on demand.
+
+### 4. Image Analysis
+
+Analyze existing charts and visualizations: "What trends does this chart show?" to extract insights from images.
+
+### 5. Complex Analytics
+
+Perform Polars-based queries on web data: "What's the average GDP of Asian countries?" with automatic data filtering and aggregation.
+
+### 6. Educational Research
+
+Students and researchers can quickly analyze data tables in academic papers, online courses, or reference materials.
+
+### 7. Financial Analysis
+
+Analyze stock tables, economic indicators, and financial reports directly from news sites or investor portals.
+
+### 8. Competitive Intelligence
+
+Extract insights from competitor data tables, market research reports, and industry statistics found online.
+
+## Project Setup
 
 ### Local Development
 
-#### 1. Backend (Flask + DuckDB)
+#### Prerequisites
+
+- Python 3.11+
+- Node.js 16+
+- npm
+- Chrome browser
+- Ollama (for local LLM inference)
+
+#### 1. Backend Setup
 
 ```bash
 cd revela-app
 
-# Ensure virtual environment exists
+# Create virtual environment
 uv venv .venv
 
 # Activate virtual environment
-source .venv/bin/activate
+source .venv/bin/activate  # On macOS/Linux
+# or
+.venv\Scripts\activate  # On Windows
 
-# Install dependencies (if needed)
+# Install dependencies
 uv sync
 
 # Start the backend
-./start-app.sh
+./start-app.sh  # On macOS/Linux
+# or
+start-app.bat  # On Windows
 ```
 
-Access at: http://localhost:8080
+The backend will be available at `http://localhost:8080`
 
-#### 2. Ollama (Inference Service)
+**Environment Variables** (optional):
+- `OLLAMA_HOST`: Ollama service URL (default: `http://localhost:11434`)
+- `OLLAMA_MODEL`: Model to use (default: `gemma3:12b-it-qat`)
+- `ENVIRONMENT`: Set to `production` or `local` (default: `local`)
+
+#### 2. Ollama Setup
+
+**Option A: Local Installation**
 
 ```bash
-# Run Ollama locally
-ollama serve
-ollama pull gemma:7b
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
 
-# Or use Docker
+# Start Ollama
+ollama serve
+
+# Pull Gemma model
+ollama pull gemma3:12b-it-qat
+```
+
+**Option B: Docker**
+
+```bash
 cd ollama-gemma
 docker build -t revela-ollama .
 docker run -p 11434:11434 revela-ollama
 ```
 
-#### 3. Chrome Extension
+#### 3. Chrome Extension Setup
 
 ```bash
 cd chrome-extension
@@ -81,29 +199,71 @@ cd chrome-extension
 # Install dependencies
 npm install
 
-# Build extension (if needed)
+# Build the extension
 npm run build
 ```
 
-Load in Chrome:
-1. Open `chrome://extensions/`
-2. Enable "Developer mode"
+**Load in Chrome:**
+
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode" (toggle in top right)
 3. Click "Load unpacked"
-4. Select `chrome-extension/dist` directory (or `chrome-extension` if no build step)
+4. Select the `chrome-extension/dist` directory
 
-### Cloud Deployment
+## Production Deployment
 
-See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for complete Cloud Run deployment instructions.
+### Prerequisites
 
-Quick deploy:
+- Google Cloud Platform account
+- `gcloud` CLI installed and configured
+- Required GCP APIs enabled:
+  - Cloud Run API
+  - Cloud Build API
+
+### Setup GCP Project
 
 ```bash
-# Set your GCP project
+# Set your project ID
 export PROJECT_ID="your-project-id"
 gcloud config set project $PROJECT_ID
 
-# Deploy from revela-app directory
+# Enable required APIs
+gcloud services enable run.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+```
+
+### Deploy Ollama Service (GPU Instance)
+
+```bash
+cd ollama-gemma
+
+gcloud run deploy revela-ollama \
+  --source . \
+  --region europe-west4 \
+  --platform managed \
+  --no-allow-unauthenticated \
+  --cpu 4 \
+  --memory 8Gi \
+  --gpu 1 \
+  --gpu-type nvidia-l4 \
+  --timeout 600 \
+  --max-instances 5 \
+  --min-instances 0 \
+  --concurrency 4
+
+# Get the service URL
+export OLLAMA_HOST=$(gcloud run services describe revela-ollama \
+  --region europe-west4 \
+  --format='value(status.url)')
+```
+
+**Note**: GPU instances require quota allocation. Request `NVIDIA L4 GPU` quota under Cloud Run API if needed.
+
+### Deploy Backend Service (CPU Instance)
+
+```bash
 cd revela-app
+
 gcloud run deploy revela-app \
   --source . \
   --region europe-west4 \
@@ -112,244 +272,46 @@ gcloud run deploy revela-app \
   --cpu 2 \
   --memory 2Gi \
   --timeout 300 \
-  --max-instances 1 \
+  --max-instances 10 \
   --min-instances 0 \
-  --set-env-vars OLLAMA_HOST=https://your-ollama-service.run.app
+  --concurrency 80 \
+  --set-env-vars OLLAMA_HOST=${OLLAMA_HOST}
+
+# Get the backend URL
+export BACKEND_URL=$(gcloud run services describe revela-app \
+  --region europe-west4 \
+  --format='value(status.url)')
 ```
 
-## 📁 Project Structure
+### Configure Service Authentication
 
-```
-revela/
-├── chrome-extension/          # Chrome extension
-│   ├── public/
-│   │   ├── manifest.json     # Extension manifest (uses logo.png only)
-│   │   └── images/
-│   │       └── logo.png      # Single icon for all uses
-│   └── src/
-│       ├── background/        # Background service worker
-│       ├── content/           # Content scripts (hover detection)
-│       │   ├── content.js    # Main detection and UI logic
-│       │   └── content.css   # Styled hover icons, sidebar, tooltips
-│       └── popup/             # Extension popup UI
-│
-├── revela-app/                # Backend API (Cloud Run CPU)
-│   ├── src/
-│   │   ├── app.py            # Flask routes and API endpoints
-│   │   ├── session_manager.py # Ephemeral session management
-│   │   ├── ollama_client.py  # LLM client
-│   │   └── config_module.py  # Configuration
-│   ├── ui/                    # Web interface assets
-│   ├── Dockerfile            # Cloud Run Dockerfile
-│   ├── pyproject.toml        # Python dependencies (uv)
-│   └── start-app.sh          # Local startup script
-│
-├── ollama-gemma/              # Ollama service (optional)
-│   ├── Dockerfile            # Ollama + Gemma container
-│   └── README.md
-│
-├── DEPLOYMENT.md              # Deployment guide
-├── ARCHITECTURE.md            # System architecture
-└── README.md                  # This file
-```
-
-## ✨ Features
-
-### Chrome Extension
-
-- 🎯 **Automatic Detection**: Recognizes tables and chart images on any webpage
-- 🖼️ **Single Icon**: Uses logo.png only (no icon clutter)
-- ⚡ **Quick Insights**: Hover icon → Click → Instant summary tooltip
-- 💬 **Deep Analyse**: Opens interactive sidebar for conversational exploration
-- 🔒 **Privacy-First**: No tracking, no persistent storage
-- 🌐 **Works Everywhere**: Analyzes data on any website
-
-### Backend API
-
-- 📊 **DuckDB Integration**: In-memory SQL analytics for tables
-- 🔄 **Ephemeral Sessions**: Unique session IDs, auto-expire after 30 min
-- 🧠 **LLM-Powered**: Gemma model for insights generation
-- 🌊 **RESTful API**: Clean endpoints for extension communication
-- 📈 **Summary Statistics**: Automatic table profiling
-
-### API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/session/start` | POST | Start new analysis session |
-| `/api/quick-insights` | POST | Get instant insights (no session) |
-| `/api/deep-analyse` | POST | Conversational analysis |
-| `/api/session/end` | POST | End session, cleanup resources |
-| `/health` | GET | Health check + active sessions |
-
-## 🛠️ Development
-
-### Prerequisites
-
-- **Python**: 3.11+
-- **Package Manager**: [uv](https://github.com/astral-sh/uv)
-- **Node.js**: 18+ (for extension)
-- **Ollama**: Local or Cloud Run
-- **Docker**: For containerization (optional)
-
-### Backend Development
+Allow the backend to invoke the Ollama service:
 
 ```bash
-cd revela-app
+# Get the backend service account
+export BACKEND_SA=$(gcloud run services describe revela-app \
+  --region europe-west4 \
+  --format='value(spec.template.spec.serviceAccountName)')
 
-# Install new package
-uv add <package-name>
-
-# Run locally
-./start-app.sh
-
-# Run with gunicorn manually
-uv run gunicorn --bind 0.0.0.0:8080 --workers 2 --reload src.app:app
+# Grant invoke permission
+gcloud run services add-iam-policy-binding revela-ollama \
+  --region europe-west4 \
+  --member="serviceAccount:${BACKEND_SA}" \
+  --role="roles/run.invoker"
 ```
 
-### Extension Development
+### Deploy Chrome Extension
 
 ```bash
 cd chrome-extension
 
-# Install package
-npm install <package-name>
+# Build for production
+npm run build
 
-# Development mode
-npm run dev
+# The dist/ folder contains the production-ready extension
+# Upload to Chrome Web Store or distribute as needed
 ```
 
-### Testing Session Management
+## License
 
-```bash
-# Start backend
-cd revela-app && ./start-app.sh
-
-# Test session creation
-curl -X POST http://localhost:8080/api/session/start \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sessionId": "test-123",
-    "data": {
-      "type": "table",
-      "html": "<table><tr><th>Name</th></tr><tr><td>Test</td></tr></table>"
-    },
-    "url": "http://example.com"
-  }'
-
-# Test quick insights
-curl -X POST http://localhost:8080/api/quick-insights \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sessionId": "quick-456",
-    "data": {
-      "type": "table",
-      "html": "<table><tr><th>Col1</th><th>Col2</th></tr><tr><td>A</td><td>1</td></tr></table>"
-    },
-    "url": "http://example.com"
-  }'
-```
-
-## 🔧 Configuration
-
-### Backend Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ENVIRONMENT` | Runtime environment | `development` |
-| `OLLAMA_HOST` | Ollama service URL | `http://localhost:11434` |
-| `PORT` | Server port | `8080` |
-
-### Extension Configuration
-
-Update `content.js`:
-
-```javascript
-// For local development
-const API_ENDPOINT = 'http://localhost:8080';
-
-// For production
-const API_ENDPOINT = 'https://your-backend.run.app';
-```
-
-## 📊 Session Lifecycle
-
-1. **Hover Detection** → User hovers over table/chart
-2. **Icon Display** → Hover icon (logo.png) appears
-3. **User Action** → Clicks "Quick Insights" or "Deep Analyse"
-4. **Session Creation** → Unique session ID generated
-5. **Data Extraction** → HTML table or image data sent to backend
-6. **DuckDB Processing** → Table parsed into in-memory database
-7. **LLM Query** → Context sent to Gemma for insights
-8. **Response Display** → Tooltip or sidebar shows results
-9. **Auto-Cleanup** → Session expires after 30 min or manual close
-
-## 🌐 Deployment
-
-### Cloud Run Architecture
-
-```
-┌─────────────────┐
-│ Chrome Extension│
-└────────┬────────┘
-         │ HTTPS
-         ▼
-┌─────────────────┐
-│  Backend API    │ (Cloud Run - CPU)
-│  - Sessions     │ - 2 vCPU, 2GB RAM
-│  - DuckDB       │ - Source deploy
-│  - Orchestration│ - Autoscale 0→N
-└────────┬────────┘
-         │ HTTPS
-         ▼
-┌─────────────────┐
-│ Ollama Service  │ (Local or Cloud Run)
-│  - Gemma Model  │ - Optional GPU
-│  - Inference    │
-└─────────────────┘
-```
-
-**See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions**
-
-### Simple Source Deployment
-
-No build configs needed! Cloud Run builds from source:
-
-```bash
-cd revela-app
-gcloud run deploy revela-app --source .
-```
-
-## 🔒 Security & Privacy
-
-- ✅ **No Persistent Storage**: All data ephemeral
-- ✅ **HTTPS Only**: Encrypted communication
-- ✅ **Service-to-Service Auth**: IAM-based internal calls (optional)
-- ✅ **CORS Protection**: Restricted origins
-- ✅ **Auto-Cleanup**: Sessions destroyed after timeout
-- ✅ **No Tracking**: Zero analytics or user monitoring
-
-## 🤝 Contributing
-
-Contributions welcome! Areas for improvement:
-
-- [ ] Support for more chart types (SVG, Canvas)
-- [ ] Advanced SQL query generation
-- [ ] Multi-table relationship analysis
-- [ ] Export insights to CSV/PDF
-- [ ] Custom model selection
-
-## 📝 License
-
-MIT License - see LICENSE file for details
-
-## 🙏 Acknowledgments
-
-- **Google Gemma**: State-of-the-art language model
-- **Ollama**: Simplified LLM deployment
-- **DuckDB**: Fast in-memory analytics
-- **Cloud Run**: Serverless container platform
-
----
-
-**Built with ❤️ for data enthusiasts**
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "revela",
   "version": "1.0.0",
-  "description": "Instant Data Intelligence for the Web powered by Google Gemma 3",
+  "description": "Data Copilot for the Web powered by Google Gemma 3",
   "permissions": [
     "activeTab",
     "storage",

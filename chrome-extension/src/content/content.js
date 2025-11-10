@@ -3,6 +3,12 @@
 
 console.log('Revela content script loaded');
 
+// Signal extension presence to the page
+window.postMessage({ type: 'REVELA_EXTENSION_INSTALLED', version: '1.0' }, '*');
+
+// Also add a marker to the DOM that the page can check
+document.documentElement.setAttribute('data-revela-extension', 'installed');
+
 // Global error handler for extension context invalidation
 window.addEventListener('error', (event) => {
   if (event.message?.includes('Extension context invalidated')) {
@@ -92,22 +98,57 @@ function extractElementData(element) {
   }
   
   if (element.tagName === 'IMG') {
+    // Try to convert image to base64 for LLM analysis
+    // If it fails due to CORS, we'll send the URL instead
+    let imageData = null;
+    
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = element.naturalWidth || element.width;
+      canvas.height = element.naturalHeight || element.height;
+      const ctx = canvas.getContext('2d');
+      
+      // Try to draw image - this will succeed if same-origin or CORS-enabled
+      ctx.drawImage(element, 0, 0);
+      
+      // Try to export - this will fail if image is "tainted"
+      imageData = canvas.toDataURL('image/png');
+      console.log('Revela: Successfully extracted image data');
+    } catch (error) {
+      console.warn('Revela: Cannot extract image data due to CORS restrictions:', error.message);
+      console.log('Revela: Will send image URL instead for backend to fetch');
+      imageData = null; // Backend will fetch from URL
+    }
+    
     return {
       type: 'image',
       src: element.src,
       alt: element.alt,
-      width: element.width,
-      height: element.height
+      width: element.naturalWidth || element.width,
+      height: element.naturalHeight || element.height,
+      imageData: imageData
     };
   }
   
   if (element.tagName === 'CANVAS') {
-    return {
-      type: 'canvas',
-      dataUrl: element.toDataURL('image/png'),
-      width: element.width,
-      height: element.height
-    };
+    try {
+      const dataUrl = element.toDataURL('image/png');
+      return {
+        type: 'canvas',
+        dataUrl: dataUrl,
+        imageData: dataUrl,
+        width: element.width,
+        height: element.height
+      };
+    } catch (error) {
+      console.warn('Revela: Cannot extract canvas data:', error.message);
+      return {
+        type: 'canvas',
+        width: element.width,
+        height: element.height,
+        imageData: null
+      };
+    }
   }
   
   return null;
@@ -150,7 +191,7 @@ function createHoverIcon(element) {
   menu.className = 'revela-action-menu';
   menu.innerHTML = `
     <button class="revela-action-btn" data-action="quick">Quick Insights</button>
-    <button class="revela-action-btn" data-action="deep">Deep Analyse</button>
+    <button class="revela-action-btn" data-action="deep">Deep Analyze</button>
   `;
   
   icon.appendChild(menu);
@@ -168,7 +209,7 @@ function createHoverIcon(element) {
       if (action === 'quick') {
         await handleQuickInsights(element);
       } else if (action === 'deep') {
-        await handleDeepAnalyse(element);
+        await handleDeepAnalyze(element);
       }
     });
   });
@@ -253,17 +294,29 @@ async function handleQuickInsights(element) {
     
   } catch (error) {
     console.error('Quick insights error:', error);
-    updateQuickInsightsSidebar(sessionId, null, `Failed to generate insights: ${error.message}`);
+    
+    let errorMessage = `Failed to generate insights: ${error.message}`;
+    
+    // Provide helpful error message for 404
+    if (error.message.includes('404')) {
+      errorMessage = `<strong>Backend not available (404)</strong><br><br>
+        The backend API is not responding. Please:<br>
+        • Start the backend: <code>cd revela-app && ./start-app.sh</code><br>
+        • Or enable "Use localhost" in extension settings<br>
+        • Check if the backend is running at http://localhost:8080/health`;
+    }
+    
+    updateQuickInsightsSidebar(sessionId, null, errorMessage);
   }
 }
 
-// Handle Deep Analyse
-async function handleDeepAnalyse(element) {
+// Handle Deep Analyze
+async function handleDeepAnalyze(element) {
   const sessionId = generateSessionId();
   const elementData = extractElementData(element);
   const apiEndpoint = await getApiEndpoint();
   
-  console.log('Revela: Deep Analyse requested');
+  console.log('Revela: Deep Analyze requested');
   console.log('Element data:', elementData);
   
   // Store session
@@ -301,7 +354,15 @@ async function handleDeepAnalyse(element) {
     
   } catch (error) {
     console.error('Deep analyse error:', error);
-    showError(`Failed to start analysis session: ${error.message}`);
+    
+    let errorMessage = `Failed to start analysis session: ${error.message}`;
+    
+    // Provide helpful error message for 404
+    if (error.message.includes('404')) {
+      errorMessage = `Backend not available (404).\n\nPlease:\n• Start the backend: cd revela-app && ./start-app.sh\n• Or enable "Use localhost" in extension settings`;
+    }
+    
+    showError(errorMessage);
     activeSessions.delete(sessionId);
   }
 }
@@ -380,7 +441,7 @@ function openSidebar(sessionId, elementData, summary, element) {
   sidebar.innerHTML = `
     <div class="revela-sidebar-header">
       <img src="${chrome.runtime.getURL('images/logo.png')}" alt="Revela" class="revela-sidebar-logo" />
-      <h3>revela - Deep Analyse</h3>
+      <h3>revela - Deep Analyze</h3>
       <button class="revela-close-btn" id="revela-sidebar-close">&times;</button>
     </div>
     <div class="revela-chat-container" id="revela-chat-${sessionId}">
@@ -584,7 +645,8 @@ function updateQuickInsightsSidebar(sessionId, insights, error = null) {
   const messageEl = document.createElement('div');
   if (error) {
     messageEl.className = 'revela-message revela-error-message';
-    messageEl.textContent = error;
+    // Support HTML in error messages for better formatting
+    messageEl.innerHTML = error;
   } else if (insights) {
     messageEl.className = 'revela-message revela-assistant-message';
     // Parse markdown to HTML
@@ -633,6 +695,8 @@ async function sendMessage(sessionId) {
   
   try {
     // Send to backend
+    console.log('Revela: Sending deep-analyse request:', { sessionId, message });
+    
     const response = await fetch(`${apiEndpoint}/api/deep-analyse`, {
       method: 'POST',
       headers: {
@@ -644,11 +708,15 @@ async function sendMessage(sessionId) {
       })
     });
     
+    console.log('Revela: Response status:', response.status);
+    
     // Remove typing indicator
     typingIndicator.remove();
     
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Revela: API error response:', errorText);
+      throw new Error(`API error: ${response.status} - ${errorText}`);
     }
     
     const result = await response.json();
@@ -660,6 +728,33 @@ async function sendMessage(sessionId) {
     assistantMsg.innerHTML = parseMarkdown(result.response);
     messagesContainer.appendChild(assistantMsg);
     
+    // Add data result if available
+    if (result.has_data && result.data) {
+      const dataMsg = document.createElement('div');
+      dataMsg.className = 'revela-message revela-data-message';
+      
+      if (result.data.error) {
+        dataMsg.innerHTML = `<strong>Query Error:</strong><br><pre>${result.data.error}</pre>`;
+      } else if (result.data.type === 'dataframe') {
+        // Display DataFrame result as table
+        const tableHtml = formatDataFrameAsTable(result.data);
+        dataMsg.innerHTML = `<strong>Query Result:</strong><br>${tableHtml}`;
+      } else if (result.data.type === 'value') {
+        // Display single value
+        dataMsg.innerHTML = `<strong>Result:</strong> <code>${result.data.data}</code>`;
+      }
+      
+      messagesContainer.appendChild(dataMsg);
+    }
+    
+    // Add chart if available
+    if (result.has_chart && result.chart) {
+      const chartMsg = document.createElement('div');
+      chartMsg.className = 'revela-message revela-chart-message';
+      chartMsg.innerHTML = `<img src="${result.chart}" alt="Generated Chart" class="revela-chart-image" />`;
+      messagesContainer.appendChild(chartMsg);
+    }
+    
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
     
@@ -669,7 +764,18 @@ async function sendMessage(sessionId) {
     
     const errorMsg = document.createElement('div');
     errorMsg.className = 'revela-message revela-error-message';
-    errorMsg.textContent = 'Failed to get response. Please try again.';
+    
+    // Provide helpful error message based on error type
+    if (error.message.includes('404')) {
+      errorMsg.innerHTML = `<strong>Backend not available (404)</strong><br><br>
+        The backend API is not responding. Please check:<br>
+        • Is the backend running? (<code>cd revela-app && ./start-app.sh</code>)<br>
+        • Are you using localhost mode in extension settings?<br>
+        • Open the extension popup and enable "Use localhost"`;
+    } else {
+      errorMsg.textContent = `Failed to get response: ${error.message}`;
+    }
+    
     messagesContainer.appendChild(errorMsg);
   }
 }
@@ -780,12 +886,18 @@ function handleMouseOver(e) {
     return;
   }
   
-  // Check the element itself or find the closest table/img/canvas
+  // Check the element itself first
   let targetElement = element;
   
-  // If we're hovering over a table cell, find the parent table
+  // Priority order: IMG/CANVAS first (more specific), then TABLE (less specific)
   if (!isAnalyzableElement(targetElement)) {
-    targetElement = element.closest('TABLE, IMG, CANVAS');
+    // First try to find closest IMG or CANVAS (higher priority)
+    targetElement = element.closest('IMG, CANVAS');
+    
+    // If no IMG/CANVAS found, then look for TABLE
+    if (!targetElement) {
+      targetElement = element.closest('TABLE');
+    }
   }
   
   // Debug: Log what we're hovering over
@@ -899,6 +1011,82 @@ function closeFullScreenImage() {
     viewer.remove();
     document.body.style.overflow = '';
   }
+}
+
+// Helper function to format DataFrame as HTML table
+function formatDataFrameAsTable(dataResult) {
+  if (!dataResult.data || dataResult.data.length === 0) {
+    return '<em>No data returned</em>';
+  }
+  
+  const data = dataResult.data;
+  const columns = dataResult.columns || Object.keys(data[0]);
+  
+  let html = '<div class="revela-data-table-container"><table class="revela-data-table">';
+  
+  // Header
+  html += '<thead><tr>';
+  columns.forEach(col => {
+    html += `<th>${col}</th>`;
+  });
+  html += '</tr></thead>';
+  
+  // Body (limit to 10 rows for display)
+  html += '<tbody>';
+  const displayRows = data.slice(0, 10);
+  displayRows.forEach(row => {
+    html += '<tr>';
+    columns.forEach(col => {
+      const value = row[col] !== null && row[col] !== undefined ? row[col] : '';
+      html += `<td>${value}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  
+  html += '</table></div>';
+  
+  if (data.length > 10) {
+    html += `<p class="revela-data-note"><em>Showing first 10 of ${data.length} rows</em></p>`;
+  }
+  
+  return html;
+}
+
+// Simple markdown parser for LLM responses
+function parseMarkdown(text) {
+  if (!text) return '';
+  
+  let html = text;
+  
+  // Code blocks
+  html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  
+  // Headers
+  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+  
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  
+  // Italic
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  
+  // Lists
+  html = html.replace(/^\* (.+)$/gim, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+  
+  // Numbered lists
+  html = html.replace(/^\d+\. (.+)$/gim, '<li>$1</li>');
+  
+  // Line breaks
+  html = html.replace(/\n\n/g, '<br><br>');
+  
+  return html;
 }
 
 // Auto-start detection on load

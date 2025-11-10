@@ -9,10 +9,13 @@ import logging
 import base64
 from pathlib import Path
 import json
+import re
+import polars as pl
 
 from src.config_module import config
 from src.ollama_client import ollama_client
 from src.session_manager import session_manager
+from src.llm_code_executor import CodeExecutor, create_chart_prompt
 
 # Configure logging
 logging.basicConfig(
@@ -173,15 +176,26 @@ def quick_insights():
             
             # Build prompt for LLM
             if data_type == 'table':
+                # For tables, load data into Polars and get comprehensive stats
+                numeric_stats = summary.get('numeric_stats', {})
+                stats_text = ""
+                if numeric_stats:
+                    stats_text = "\n**Numeric Statistics:**\n"
+                    for col, stats in numeric_stats.items():
+                        stats_text += f"- {col}: mean={stats.get('mean', 'N/A')}, min={stats.get('min', 'N/A')}, max={stats.get('max', 'N/A')}\n"
+                
                 prompt = f"""Analyze this table data and provide 3-5 quick, actionable insights.
 
-Table Information:
+**Table Information:**
 - Rows: {summary.get('row_count', 0)}
 - Columns: {summary.get('column_count', 0)}
 - Column Names: {', '.join(summary.get('columns', []))}
+- Data Types: {json.dumps(summary.get('dtypes', {}), indent=2)}
 
-Sample Data:
-{format_sample_rows(summary.get('sample_rows', []), summary.get('columns', []))}
+{stats_text}
+
+**Sample Data (first 5 rows):**
+{json.dumps(summary.get('sample_rows', []), indent=2)}
 
 Provide brief, clear insights about patterns, trends, or notable data points.
 
@@ -192,24 +206,85 @@ Format your response in markdown with:
 - Keep each insight concise (1-2 sentences)"""
                 
             elif data_type in ['image', 'canvas']:
-                prompt = f"""Analyze this chart/visualization and provide 3-5 quick insights.
+                # For images, validate if it's a chart and analyze with vision
+                logger.info(f"Processing image/canvas data. Has image_data: {temp_session.image_data is not None}")
+                
+                validation = summary.get('validation', {})
+                
+                if not validation.get('has_chart', True):
+                    logger.warning(f"Preliminary validation failed: {validation}")
+                    return jsonify({
+                        'success': False,
+                        'error': 'No chart or visualization detected in image',
+                        'details': validation.get('reason', 'Image validation failed')
+                    }), 400
+                
+                # Use LLM vision to validate chart
+                if temp_session.image_data:
+                    logger.info("Validating image with LLM vision...")
+                    alt_text = summary.get('alt', '')
+                    chart_validation = ollama_client.validate_image_for_chart(
+                        temp_session.image_data, 
+                        alt_text=alt_text
+                    )
+                    logger.info(f"Chart validation result: {chart_validation}")
+                    
+                    if not chart_validation.get('is_chart', False):
+                        logger.warning(f"LLM says not a chart: {chart_validation}")
+                        return jsonify({
+                            'success': False,
+                            'error': 'No chart or visualization detected in image',
+                            'details': chart_validation.get('description', 'Not a chart')
+                        }), 400
+                    
+                    # Analyze chart with vision
+                    prompt = f"""Analyze this chart/visualization and provide 3-5 quick, actionable insights.
 
-Image Information:
+**Image Information:**
 - Dimensions: {summary.get('width')}x{summary.get('height')}
-- Alt Text: {summary.get('alt', 'N/A')}
+- Alt Text: {alt_text if alt_text else 'N/A'}
+- Detected Chart Type: {chart_validation.get('chart_type', 'unknown')}
 
-Based on typical chart patterns, what insights might this visualization be showing?
+Based on what you see in the image and the context provided, provide specific insights about:
+- What data is being shown
+- Key trends or patterns
+- Notable data points or outliers
+- What the visualization tells us
 
 Format your response in markdown with:
 - Use ## for section headings
 - Use **bold** for emphasis on key points
 - Use numbered lists for insights
-- Keep each insight concise (1-2 sentences)"""
+- Be specific about what you observe in the chart"""
+                    
+                    image_to_send = temp_session.image_data
+                else:
+                    # Fallback without image
+                    prompt = f"""Based on the metadata, provide general insights about this visualization.
+
+Image Information:
+- Dimensions: {summary.get('width')}x{summary.get('height')}
+- Alt Text: {summary.get('alt', 'N/A')}
+
+Provide insights based on typical chart patterns."""
+                    image_to_send = None
+                
+                # Get insights from LLM with image
+                insights_text = ""
+                for chunk in ollama_client.generate(prompt, image=image_to_send):
+                    insights_text += chunk
+                    
+                return jsonify({
+                    'success': True,
+                    'insights': insights_text,
+                    'summary': summary,
+                    'chart_validation': chart_validation if temp_session.image_data else None
+                })
             
             else:
                 return jsonify({'error': 'Unsupported data type'}), 400
                 
-            # Get insights from LLM
+            # Get insights from LLM (for table data)
             insights_text = ""
             for chunk in ollama_client.generate(prompt):
                 insights_text += chunk
@@ -225,13 +300,13 @@ Format your response in markdown with:
             temp_session.close()
             
     except Exception as e:
-        logger.error(f"Error generating quick insights: {e}")
+        logger.error(f"Error generating quick insights: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/deep-analyse', methods=['POST', 'OPTIONS'])
 def deep_analyse():
-    """Handle conversational analysis for ongoing sessions"""
+    """Handle conversational analysis for ongoing sessions with data query and chart generation"""
     if request.method == 'OPTIONS':
         return '', 204
         
@@ -241,12 +316,18 @@ def deep_analyse():
         session_id = data.get('sessionId')
         message = data.get('message', '')
         
+        logger.info(f"Deep analyse request - sessionId: {session_id}, message length: {len(message)}")
+        
         if not session_id or not message:
+            logger.error(f"Missing required fields - sessionId: {session_id}, message: {bool(message)}")
             return jsonify({'error': 'Missing required fields'}), 400
             
         # Get session
         session = session_manager.get_session(session_id)
+        logger.info(f"Session retrieval result - session_id: {session_id}, found: {session is not None}")
+        
         if not session:
+            logger.error(f"Session not found - session_id: {session_id}, active sessions: {list(session_manager.sessions.keys())}")
             return jsonify({'error': 'Session not found or expired'}), 404
             
         # Add user message to conversation
@@ -255,8 +336,14 @@ def deep_analyse():
         # Build context for LLM
         summary = session.get_summary_stats()
         
+        # Check if this is a table or image analysis
+        is_table = session.data_type == 'table' and session.df is not None
+        is_image = session.data_type in ['image', 'canvas'] and session.image_data is not None
+        
         # Build conversation context
         context = f"""You are analyzing data from a web page.
+
+Data Type: {session.data_type}
 
 Data Summary:
 {json.dumps(summary, indent=2)}
@@ -267,35 +354,276 @@ Conversation History:
             role = msg['role'].capitalize()
             content = msg['content']
             context += f"{role}: {content}\n"
+        
+        # For table data, use intelligent query system
+        if is_table:
+            # Step 1: Ask LLM to analyze the question and generate code
+            executor = CodeExecutor(session)
             
-        # Current question
-        full_prompt = f"""{context}
+            # Build conversation context for code generation
+            conversation_context = ""
+            if len(session.conversation_history) > 1:
+                conversation_context = "\n**Previous Conversation:**\n"
+                for msg in session.conversation_history[-4:]:  # Last 4 messages (2 exchanges)
+                    role = msg['role'].capitalize()
+                    content = msg['content'][:200]  # Truncate long messages
+                    conversation_context += f"{role}: {content}\n"
+                conversation_context += "\n"
+            
+            # Create a focused prompt that requests executable code
+            code_prompt = f"""You are a data analysis assistant with access to a Polars DataFrame called 'df'.
+
+**Dataset Information:**
+- Rows: {summary.get('row_count', 0)}
+- Columns: {summary.get('columns', [])}
+- Sample Data (first 3 rows): {json.dumps(summary.get('sample_rows', [])[:3], indent=2)}
+
+{conversation_context}**Current User Question:** {message}
+
+**IMPORTANT Instructions:**
+1. Write Polars code to answer the question
+2. Store the final result in a variable called 'result'
+3. Return ONLY the Python code, no explanations
+4. DO NOT include import statements - 'pl' and 'df' are already available
+5. Use pl.col() for column references
+6. Handle string/numeric conversions as needed
+7. For multi-row results, use .to_dict() or select first row with [0] if needed
+8. NEVER use .item() unless you're certain the result is a single value (1x1)
+
+**Example for single value (1x1 result):**
+```python
+result = df.filter(pl.col('country') == 'India').select('gdp').item()
+```
+
+**Example for multi-row result:**
+```python
+result = df.filter(pl.col('region') == 'Asia').select(['country', 'gdp']).head(5).to_dict()
+```
+
+**Example for aggregation:**
+```python
+result = df.select(pl.col('gdp').sum()).item()
+```
+
+Now write ONLY the code (no imports, no explanations) to answer: {message}"""
+
+            # Get code from LLM
+            code_response = ""
+            for chunk in ollama_client.generate(code_prompt, stream=False):
+                code_response += chunk
+            
+            logger.info(f"LLM code response: {code_response}")
+            
+            # Parse and execute the code
+            parsed = executor.parse_llm_response_for_code(code_response)
+            
+            result_data = None
+            execution_result = None
+            
+            if parsed['has_code'] and parsed['polars_code']:
+                try:
+                    execution_result = executor.execute_polars_code(parsed['polars_code'])
+                    result_data = execution_result
+                    logger.info(f"Code executed successfully: {execution_result}")
+                except Exception as e:
+                    logger.error(f"Error executing code: {e}")
+                    result_data = {'error': str(e)}
+            
+            # Step 2: Generate natural language response with the actual result
+            explanation_prompt = f"""Based on this data query result, provide a clear, concise answer to the user's question.
+
+**User Question:** {message}
+
+**Dataset Context:** Table with {summary.get('row_count')} rows, columns: {', '.join(summary.get('columns', []))}
+
+"""
+            
+            if execution_result and execution_result.get('success'):
+                explanation_prompt += f"**Query executed successfully. Result:**\n{json.dumps(execution_result.get('data'), indent=2)}\n\n"
+                explanation_prompt += "Provide a natural language answer that includes the actual data values. Be specific and cite the numbers in your response."
+            else:
+                error_msg = result_data.get('error') if result_data else 'No code was generated to answer this question'
+                explanation_prompt += f"**Error occurred:** {error_msg}\n\n"
+                explanation_prompt += "Explain the error to the user in simple terms and suggest what might be wrong or how to rephrase the question."
+
+            # Get natural language explanation
+            response_text = ""
+            for chunk in ollama_client.generate(explanation_prompt):
+                response_text += chunk
+            
+            # Add error info if code execution failed (for display in UI)
+            if execution_result and not execution_result.get('success'):
+                # Format error nicely for display
+                error_display = f"\n\n⚠️ **Query Error:**\n\n```\n{result_data.get('error', 'Unknown error')}\n```"
+                response_text += error_display
+            
+            # Check if chart would be helpful
+            chart_image = None
+            if 'chart' in message.lower() or 'plot' in message.lower() or 'visualize' in message.lower():
+                # Ask LLM for chart suggestion
+                data_summary = json.dumps(execution_result.get('data') if execution_result else {}, indent=2)
+                chart_prompt = f"""Suggest a chart specification for this data.
+
+Question: {message}
+Data: {data_summary}
+
+Respond with ONLY a JSON object:
+```json
+{{
+  "type": "bar|line|scatter|pie",
+  "x_col": "column_name",
+  "y_col": "column_name", 
+  "title": "Chart Title"
+}}
+```"""
+                
+                chart_response = ""
+                for chunk in ollama_client.generate(chart_prompt, stream=False):
+                    chart_response += chunk
+                
+                chart_parsed = executor.parse_llm_response_for_code(chart_response)
+                if chart_parsed['has_chart']:
+                    try:
+                        chart_image = session.generate_chart(chart_parsed['chart_spec'])
+                        logger.info(f"Generated chart successfully")
+                    except Exception as e:
+                        logger.error(f"Error generating chart: {e}")
+            
+            # Add to conversation
+            session.add_conversation('assistant', response_text)
+            
+            return jsonify({
+                'success': True,
+                'response': response_text,
+                'has_chart': bool(chart_image),
+                'chart': chart_image
+            })
+            
+        elif is_image:
+            # For images, use vision analysis
+            full_prompt = f"""{context}
 
 User Question: {message}
 
-Provide a clear, concise answer based on the data. If the question requires data analysis, explain your findings.
+Analyze the image and answer the user's question based on what you can see in the visualization.
 
 Format your response in markdown with:
 - Use ## for section headings
 - Use **bold** for emphasis on key findings
-- Use bullet points or numbered lists for clarity
-- Use code blocks with ``` for data examples if needed"""
-        
-        # Get response from LLM
-        response_text = ""
-        for chunk in ollama_client.generate(full_prompt):
-            response_text += chunk
+- Be specific about what you observe in the chart"""
             
-        # Add assistant response to conversation
-        session.add_conversation('assistant', response_text)
+            # Get response from LLM with image
+            response_text = ""
+            for chunk in ollama_client.generate(full_prompt, image=session.image_data):
+                response_text += chunk
+            
+            # Check if user wants a chart generated
+            chart_image = None
+            if any(keyword in message.lower() for keyword in ['chart', 'plot', 'graph', 'visualize', 'show me']):
+                logger.info("User requested chart generation from image analysis")
+                
+                # Ask LLM to extract data and suggest chart
+                chart_request_prompt = f"""Based on the image you just analyzed and the user's question: "{message}"
+
+Extract the key data points you can see in the image and suggest how to visualize them.
+
+Respond ONLY with a JSON object in this format:
+```json
+{{
+  "data": {{"Country": ["India", "Canada"], "GDP": [4.12, 2.28]}},
+  "chart_type": "bar",
+  "x_col": "Country",
+  "y_col": "GDP",
+  "title": "GDP Comparison",
+  "x_label": "Country",
+  "y_label": "GDP (USD Trillion)"
+}}
+```
+
+Extract actual values from the image. Be precise with numbers."""
+                
+                chart_spec_text = ""
+                for chunk in ollama_client.generate(chart_request_prompt, image=session.image_data, stream=False):
+                    chart_spec_text += chunk
+                
+                logger.info(f"Chart specification from LLM: {chart_spec_text}")
+                
+                # Parse the chart specification
+                try:
+                    # Extract JSON from response
+                    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', chart_spec_text, re.DOTALL)
+                    if json_match:
+                        chart_spec = json.loads(json_match.group())
+                        
+                        # Generate chart using the extracted data
+                        if 'data' in chart_spec and chart_spec['data']:
+                            logger.info(f"Generating chart from extracted data: {chart_spec['data']}")
+                            
+                            # Create a temporary DataFrame from the extracted data
+                            temp_df = pl.DataFrame(chart_spec['data'])
+                            
+                            # Create chart specification for session.generate_chart
+                            chart_params = {
+                                'type': chart_spec.get('chart_type', 'bar'),
+                                'x_col': chart_spec.get('x_col'),
+                                'y_col': chart_spec.get('y_col'),
+                                'title': chart_spec.get('title', 'Chart'),
+                                'x_label': chart_spec.get('x_label'),
+                                'y_label': chart_spec.get('y_label')
+                            }
+                            
+                            # Temporarily set the DataFrame in session
+                            original_df = session.df
+                            session.df = temp_df
+                            
+                            try:
+                                chart_image = session.generate_chart(chart_params)
+                                logger.info("Successfully generated chart from image data")
+                            finally:
+                                # Restore original DataFrame
+                                session.df = original_df
+                                
+                except Exception as e:
+                    logger.error(f"Error generating chart from image: {e}", exc_info=True)
+            
+            # Add assistant response to conversation
+            session.add_conversation('assistant', response_text)
+            
+            return jsonify({
+                'success': True,
+                'response': response_text,
+                'has_chart': bool(chart_image),
+                'chart': chart_image
+            })
         
-        return jsonify({
-            'success': True,
-            'response': response_text
-        })
+        else:
+            # Fallback for other data types
+            full_prompt = f"""{context}
+
+User Question: {message}
+
+Provide a clear, concise answer based on the available data.
+
+Format your response in markdown with:
+- Use ## for section headings
+- Use **bold** for emphasis on key findings
+- Use bullet points or numbered lists for clarity"""
+            
+            # Get response from LLM
+            response_text = ""
+            for chunk in ollama_client.generate(full_prompt):
+                response_text += chunk
+            
+            # Add assistant response to conversation
+            session.add_conversation('assistant', response_text)
+            
+            return jsonify({
+                'success': True,
+                'response': response_text
+            })
         
     except Exception as e:
-        logger.error(f"Error in deep analyse: {e}")
+        logger.error(f"Error in deep analyse: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 

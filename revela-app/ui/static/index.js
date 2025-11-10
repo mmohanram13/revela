@@ -1,12 +1,29 @@
 // Extension detection handling
 let extensionConfirmed = localStorage.getItem('extensionConfirmed') === 'true';
+let extensionDetected = false;
+
+// Check for extension via DOM attribute
+function checkExtensionInstalled() {
+    return document.documentElement.hasAttribute('data-revela-extension');
+}
+
+// Listen for extension presence signal
+window.addEventListener('message', (event) => {
+    if (event.data.type === 'REVELA_EXTENSION_INSTALLED') {
+        console.log('Revela extension detected via postMessage');
+        extensionDetected = true;
+        extensionConfirmed = true;
+        localStorage.setItem('extensionConfirmed', 'true');
+        updateExtensionStatus();
+    }
+});
 
 // Show/hide extension alerts based on state
 function updateExtensionStatus() {
     const alertElement = document.getElementById('extension-alert');
     const confirmedElement = document.getElementById('extension-confirmed');
     
-    if (extensionConfirmed) {
+    if (extensionConfirmed || extensionDetected) {
         alertElement.style.display = 'none';
         confirmedElement.style.display = 'block';
     } else {
@@ -24,6 +41,17 @@ document.getElementById('confirm-extension-btn')?.addEventListener('click', () =
 
 // Initialize extension status on load
 updateExtensionStatus();
+
+// Check again after a short delay (in case extension loads after page)
+setTimeout(() => {
+    if (checkExtensionInstalled()) {
+        console.log('Revela extension detected via DOM attribute');
+        extensionDetected = true;
+        extensionConfirmed = true;
+        localStorage.setItem('extensionConfirmed', 'true');
+        updateExtensionStatus();
+    }
+}, 500);
 
 // Image handling
 let currentImageData = null;

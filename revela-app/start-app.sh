@@ -35,4 +35,4 @@ echo ""
 echo "✓ Starting Flask app with gunicorn..."
 echo "🌐 Access the app at: http://localhost:8080"
 echo ""
-uv run gunicorn --bind 0.0.0.0:8080 --workers 2 --timeout 120 --reload src.app:app
+uv run gunicorn --bind 0.0.0.0:8080 --workers 1 --timeout 120 --reload src.app:app
