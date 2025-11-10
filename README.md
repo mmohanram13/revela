@@ -60,30 +60,13 @@ Inference service running on Google Cloud Run (GPU):
 
 ## Architecture
 
-```
-┌─────────────────────┐
-│  Chrome Extension   │  Browser-side detection and UI
-└──────────┬──────────┘
-           │ HTTPS/JSON
-           ▼
-┌─────────────────────┐
-│   Backend API       │  Flask service on Cloud Run (CPU)
-│   (revela-app)      │  - Session management
-│                     │  - Data processing (Polars)
-│   - Session Mgmt    │  - Chart generation
-│   - Polars queries  │  - LLM orchestration
-│   - Chart gen       │
-└──────────┬──────────┘
-           │ Internal HTTPS
-           ▼
-┌─────────────────────┐
-│  Ollama Service     │  LLM inference on Cloud Run (GPU)
-│  (ollama-gemma)     │  - Gemma 3 model
-│                     │  - Vision analysis
-│   - Gemma 3 12B     │  - Natural language processing
-│   - GPU inference   │
-└─────────────────────┘
-```
+![Revela Architecture](architecture-diagram.svg)
+
+The architecture consists of three main components:
+
+1. **Chrome Extension** - Browser-side detection and UI for seamless integration with any webpage
+2. **Backend API (Cloud Run - CPU)** - Flask service handling session management, data processing with Polars, and code execution
+3. **Ollama LLM (Cloud Run - GPU)** - GPU-accelerated inference with Gemma 3 for vision and language analysis
 
 ### Cloud Run Advantages
 
