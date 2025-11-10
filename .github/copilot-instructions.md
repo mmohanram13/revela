@@ -4,8 +4,8 @@
 
 ### Virtual Environment
 - **Always ensure** Python commands run in the project's virtual environment
-- Activate the virtual environment with: `source .venv/bin/activate`
-- If the virtual environment doesn't exist, create it with: `uv venv`
+- Activate the virtual environment with: `source revela-app/.venv/bin/activate`
+- If the virtual environment doesn't exist, create it with: `cd revela-app && uv venv`
 
 ### Package Management
 - **Always use `uv`** as the Python package manager
@@ -16,47 +16,80 @@
 ## Running the Application
 
 ### From Root Directory
-- **Always run the application using**: `uv run application/main.py`
-- This command automatically uses the virtual environment and `uv` package manager
-- Do not run `python application/main.py` or `python main.py`
+- **Always run the application using**: `cd revela-app && ./start-app.sh`
+- Or manually from revela-app directory: `uv run gunicorn --bind 0.0.0.0:8080 --workers 2 --timeout 120 --reload src.app:app`
+- Uses gunicorn for both local development and production for consistency
+- The `--reload` flag enables auto-reload on code changes during development
 
 ### Workflow
-1. Ensure virtual environment is activated: `source .venv/bin/activate`
-2. Run the application: `uv run application/main.py`
+1. Navigate to revela-app: `cd revela-app`
+2. Ensure virtual environment is activated: `source .venv/bin/activate`
+3. Run the application: `./start-app.sh`
+4. Access the app at: http://localhost:8080
 
 ## Project Structure
-- `application/` - Main application code
+- `revela-app/` - Main application code (Flask app with gunicorn)
+  - `.venv/` - Virtual environment
+  - `pyproject.toml` - Project configuration and dependencies
+  - `Dockerfile` - Production Docker configuration
+  - `start-app.sh` - Application startup script
+  - `src/` - Source code directory (all Python files)
+    - `__init__.py` - Package initialization
+    - `app.py` - Flask application and routes
+    - `config_module.py` - Configuration management
+    - `ollama_client.py` - Ollama API client
+    - `images/` - Image assets
+  - `ui/` - User interface assets
+    - `static/` - Static assets
+      - `styles.css` - CSS styles
+      - `index.js` - JavaScript
+    - `templates/` - HTML templates
+      - `index.html` - Main page template
 - `chrome-extension/` - Chrome extension code
+  - `src/` - Source code directory
+    - `background/` - Background service worker (background.js)
+    - `content/` - Content scripts (content.js, content.css)
+    - `popup/` - Extension popup (popup.html, popup.js, popup.css)
+  - `public/` - Public assets
+    - `manifest.json` - Extension manifest
+    - `images/` - Extension icons and images
 - `ollama-gemma/` - Ollama Gemma integration (includes Docker setup)
-- `pyproject.toml` - Project configuration and dependencies
 
 ## Development Guidelines
 
 ### Dependencies
 - Minimum Python version: 3.11
-- Current dependencies in `pyproject.toml`:
+- Current dependencies in `revela-app/pyproject.toml`:
   - `ollama>=0.6.0`
-- Add new dependencies to `pyproject.toml` and install with `uv pip install`
+  - `flask>=3.0.0`
+  - `gunicorn>=23.0.0`
+  - Other dependencies as listed
+- Add new dependencies from revela-app directory: `cd revela-app && uv add <package>`
 
 ### Code Standards
 - Follow Python best practices and PEP 8 style guide
 - Write clear, maintainable code with appropriate comments
 - Add type hints where applicable
+- Use relative imports in modules (`from .config import config`)
 
 ### Before Committing
-- Verify the application runs: `uv run application/main.py`
+- Verify the application runs: `cd revela-app && ./start-app.sh`
 - Check that virtual environment is properly configured
-- Ensure all dependencies are documented in `pyproject.toml`
+- Ensure all dependencies are documented in `revela-app/pyproject.toml`
+- Test Docker build: `cd revela-app && docker build -t revela-app .`
 
 ## Common Commands Reference
 
 | Task | Command |
 |------|---------|
-| Create virtual environment | `uv venv .venv` |
-| Activate virtual environment | `source .venv/bin/activate` |
-| Install packages | `uv add <package>` |
-| Run application | `uv run application/main.py` |
-| Add dependency to project | Edit `pyproject.toml` then run `uv add` |
+| Create virtual environment | `cd revela-app && uv venv .venv` |
+| Activate virtual environment | `source revela-app/.venv/bin/activate` |
+| Install packages | `cd revela-app && uv add <package>` |
+| Run application (local) | `cd revela-app && ./start-app.sh` |
+| Run with gunicorn manually | `cd revela-app && uv run gunicorn --bind 0.0.0.0:8080 --workers 2 --reload src.api.app:app` |
+| Build Docker image | `cd revela-app && docker build -t revela-app .` |
+| Run Docker container | `docker run -p 8080:8080 revela-app` |
+| Add dependency to project | `cd revela-app && uv add <package>` |
 
 ## Chrome Extension Development
 
@@ -76,9 +109,14 @@
 
 ### Extension Structure
 - `chrome-extension/` - Chrome extension root directory
-- `chrome-extension/images/` - Extension icons and images
-- `manifest.json` - Extension manifest configuration (if exists)
-- `package.json` - Node dependencies and scripts (if exists)
+  - `src/` - Source code directory
+    - `background/` - Background service worker
+    - `content/` - Content scripts and styles
+    - `popup/` - Popup UI (HTML, CSS, JS)
+  - `public/` - Public assets
+    - `manifest.json` - Extension manifest configuration
+    - `images/` - Extension icons and images
+  - `package.json` - Node dependencies and scripts (if exists)
 
 ### Development Guidelines
 

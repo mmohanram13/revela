@@ -15,15 +15,15 @@ RUN pip install --no-cache-dir uv
 
 # Copy project files
 COPY pyproject.toml ./
-COPY application/ ./application/
+COPY __init__.py ./
+COPY src/ ./src/
+COPY ui/ ./ui/
 
 # Install Python dependencies using uv
 RUN uv pip install --system --no-cache .
 
 # Set environment variables for Cloud Run
 ENV ENVIRONMENT=production
-ENV SERVER_PORT=8080
-ENV SERVER_ADDRESS=0.0.0.0
 
 # Expose port (Cloud Run routes HTTPS/443 to this port internally)
 EXPOSE 8080
@@ -33,5 +33,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Run the Flask app using gunicorn for production
-RUN uv pip install --system --no-cache gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "application.app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "src.app:app"]

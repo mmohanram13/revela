@@ -9,7 +9,7 @@ import requests
 from io import BytesIO
 from PIL import Image
 
-from config import config
+from src.config_module import config
 
 # Configure logging
 logger = logging.getLogger(__name__)

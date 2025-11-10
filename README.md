@@ -191,8 +191,6 @@ Production environment variables in Cloud Run:
 | `ENVIRONMENT` | Deployment environment | `production` |
 | `OLLAMA_HOST` | Ollama backend URL | `https://ollama.run.app` |
 | `OLLAMA_MODEL` | Model to use | `gemma3:12b-it-qat` |
-| `SERVER_PORT` | Server port (auto-set) | `8080` |
-| `SERVER_ADDRESS` | Server address | `0.0.0.0` |
 
 ## 🔐 Authentication & Security
 

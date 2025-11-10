@@ -9,8 +9,8 @@ import base64
 from pathlib import Path
 import json
 
-from config import config
-from ollama_client import ollama_client
+from src.config_module import config
+from src.ollama_client import ollama_client
 
 # Configure logging
 logging.basicConfig(
@@ -23,11 +23,13 @@ logger.info(f"Environment: {config.environment}")
 logger.info(f"Ollama URL: {config.ollama_host}")
 
 # Get the absolute path to the images directory
-CURRENT_DIR = Path(__file__).parent
-LOGO_PATH = CURRENT_DIR / "images" / "logo.png"
+CURRENT_DIR = Path(__file__).parent.parent
+LOGO_PATH = CURRENT_DIR / "ui" / "static" / "images" / "logo.png"
 
 # Initialize Flask app
-app = Flask(__name__)
+app = Flask(__name__, 
+            template_folder='../ui/templates',
+            static_folder='../ui/static')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 
@@ -125,11 +127,3 @@ def analyze():
 def create_app():
     """Application factory function."""
     return app
-
-
-if __name__ == '__main__':
-    app.run(
-        host=config.server_address,
-        port=config.server_port,
-        debug=(config.environment == 'local')
-    )

@@ -4,10 +4,12 @@
 echo "🚀 Starting Revela Flask App..."
 
 # Check if .env exists
-if [ ! -f "application/.env" ]; then
+if [ ! -f ".env" ]; then
     echo "⚠️  .env file not found. Creating from .env.example..."
-    cp application/.env.example application/.env
-    echo "✓ Created application/.env - please configure if needed"
+    if [ -f ".env.example" ]; then
+        cp .env.example .env
+        echo "✓ Created .env - please configure if needed"
+    fi
 fi
 
 # Activate virtual environment if it exists
@@ -24,9 +26,13 @@ fi
 echo "📦 Installing dependencies..."
 uv sync
 
-# Run the app
+# Ensure gunicorn is installed
+echo "📦 Ensuring gunicorn is installed..."
+uv pip install gunicorn
+
+# Run the app with gunicorn
 echo ""
-echo "✓ Starting Flask app..."
-echo "🌐 Access the app at: http://localhost:8501"
+echo "✓ Starting Flask app with gunicorn..."
+echo "🌐 Access the app at: http://localhost:8080"
 echo ""
-uv run application/main.py
+uv run gunicorn --bind 0.0.0.0:8080 --workers 2 --timeout 120 --reload src.app:app
