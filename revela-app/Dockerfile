@@ -15,7 +15,6 @@ RUN pip install --no-cache-dir uv
 
 # Copy project files
 COPY pyproject.toml ./
-COPY __init__.py ./
 COPY src/ ./src/
 COPY ui/ ./ui/
 

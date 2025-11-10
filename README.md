@@ -153,12 +153,12 @@ gcloud run deploy revela-app \
   --region europe-west4 \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars ENVIRONMENT=production,OLLAMA_HOST=https://your-ollama-service.run.app,OLLAMA_MODEL=gemma3:12b-it-qat \
   --cpu 2 \
   --memory 2Gi \
   --timeout 300 \
   --max-instances 1 \
-  --min-instances 0
+  --min-instances 0 \
+  --set-env-vars OLLAMA_HOST=https://your-ollama-service.run.app
 ```
 
 Replace `https://your-ollama-service.run.app` with your actual Ollama service URL.
