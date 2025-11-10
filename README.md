@@ -1,153 +1,109 @@
 # Revela
 
-> Right-click any chart or table on the web to get instant AI insights, powered by Gemma on Cloud Run
+> AI-powered insights for tables and charts on any webpage — instant analysis with hover icons and deep conversational exploration
 
-Revela is a Chrome extension with a Flask web application that provides AI-powered analysis of charts and tables using Ollama and Google's Gemma models.
+Revela is a Chrome extension with a Cloud Run backend that provides ephemeral, privacy-first AI analysis of data visualizations using Google's Gemma models.
+
+## 🏗️ System Architecture
+
+Revela uses a **stateless, ephemeral architecture** designed for Cloud Run:
+
+### Core Components
+
+1. **Chrome Extension (Frontend)**
+   - Detects tables and chart images on web pages
+   - Shows hover icons (using logo.png only) beside analyzable elements
+   - Offers two interaction modes:
+     - **Quick Insights**: Instant summary of data
+     - **Deep Analyse**: Interactive sidebar chat
+
+2. **Backend API (Cloud Run - CPU)**
+   - Manages ephemeral analysis sessions
+   - In-memory DuckDB for table processing
+   - Orchestrates LLM queries
+   - Auto-cleanup after 30 min inactivity
+
+3. **Ollama Service** (Optional separate deployment)
+   - Ollama + Gemma model inference
+   - Can be GPU-accelerated or use local instance
+   - Stateless request handling
+
+### Key Advantages
+
+✅ **Privacy-First**: No persistent storage of user data  
+✅ **Auto-Scaling**: Scales to zero when idle  
+✅ **Cloud Native**: Built for Google Cloud Run  
+✅ **Simple Deployment**: Source-based deployment, no build configs needed  
+✅ **Ephemeral Sessions**: Clean state for every analysis
 
 ## 🚀 Quick Start
 
-### Flask App
+### Local Development
+
+#### 1. Backend (Flask + DuckDB)
 
 ```bash
-# Quick start (recommended)
-./start-app.sh
+cd revela-app
 
-# Or manually
-source .venv/bin/activate
-uv run application/main.py
-```
-
-Access the app at: http://localhost:8501
-
-### Chrome Extension
-
-1. Install dependencies:
-   ```bash
-   cd chrome-extension
-   npm install
-   ```
-
-2. Load in Chrome:
-   - Open `chrome://extensions/`
-   - Enable "Developer mode"
-   - Click "Load unpacked"
-   - Select the `chrome-extension` directory
-
-3. Usage:
-   - Right-click on any chart/table image
-   - Select "Analyze with Revela"
-
-## 📁 Project Structure
-
-```
-revela/
-├── application/           # Flask web application
-│   ├── app.py            # Main Flask app
-│   ├── config.py         # Configuration management
-│   ├── ollama_client.py  # Ollama API client with auth
-│   ├── .env.example      # Environment template
-│   └── images/           # App assets
-├── chrome-extension/      # Chrome extension
-│   ├── manifest.json     # Extension manifest
-│   ├── background.js     # Background service worker
-│   ├── content.js        # Content script
-│   ├── popup.html/js/css # Extension UI
-│   ├── package.json      # npm dependencies
-│   └── images/           # Extension icons
-├── ollama-gemma/         # Ollama + Gemma Docker setup
-│   ├── Dockerfile        # Ollama container
-│   └── README.md         # Ollama setup guide
-├── Dockerfile            # Cloud Run deployment
-├── pyproject.toml        # Python dependencies
-└── start-app.sh          # Quick start script
-```
-
-## ✨ Features
-
-### Flask Web App
-- 🔍 **Extension Detection**: Alerts if Chrome extension is not installed
-- 💬 **Text Prompts**: Ask questions about charts and tables
-- 🖼️ **Image Support**: Upload or paste images for analysis
-- 🤖 **AI Analysis**: Powered by Ollama with Gemma models
-- ☁️ **Cloud Ready**: Deploy to Google Cloud Run with OIDC auth
-- 📊 **Real-time Streaming**: Live response streaming from AI
-
-### Chrome Extension
-- 🖱️ **Right-click Context Menu**: Analyze any image on the web
-- 📊 **Chart & Table Detection**: Automatic visualization detection
-- 🎨 **Clean Popup UI**: Minimal, user-friendly interface
-- 🔗 **Backend Integration**: Seamlessly connects to Flask app
-- ⚡ **Fast & Lightweight**: Minimal resource usage
-
-## 🛠️ Development Setup
-
-### Prerequisites
-
-- Python 3.11+
-- [uv](https://github.com/astral-sh/uv) package manager
-- Ollama (local or Cloud Run)
-- Node.js & npm (for Chrome extension)
-
-### Python Environment Setup
-
-```bash
-# Create virtual environment
-uv venv
+# Ensure virtual environment exists
+uv venv .venv
 
 # Activate virtual environment
 source .venv/bin/activate
 
-# Install dependencies
+# Install dependencies (if needed)
 uv sync
-```
 
-### Configuration
-
-1. **Copy environment template:**
-   ```bash
-   cp application/.env.example application/.env
-   ```
-
-2. **Edit `application/.env`:**
-   ```env
-   ENVIRONMENT=local
-   OLLAMA_HOST=http://localhost:11434
-   OLLAMA_MODEL=gemma3:12b-it-qat
-   ```
-
-3. **Start Ollama:**
-   ```bash
-   # Using Docker (recommended)
-   cd ollama-gemma
-   docker build -t ollama-gemma .
-   docker run -p 11434:11434 ollama-gemma
-   
-   # Or use local Ollama
-   ollama serve
-   ```
-
-### Running Locally
-
-```bash
-# Start the Flask app
+# Start the backend
 ./start-app.sh
-
-# Or manually
-uv run application/main.py
 ```
 
-## ☁️ Cloud Deployment
+Access at: http://localhost:8080
 
-### Prerequisites
-
-- Google Cloud Project with billing enabled
-- [gcloud CLI](https://cloud.google.com/sdk/docs/install) installed and authenticated
-- Ollama backend deployed on Cloud Run (see [ollama-gemma/README.md](ollama-gemma/README.md))
-
-### Deploy Flask App to Cloud Run
+#### 2. Ollama (Inference Service)
 
 ```bash
-# Deploy from project root (where Dockerfile is located)
+# Run Ollama locally
+ollama serve
+ollama pull gemma:7b
+
+# Or use Docker
+cd ollama-gemma
+docker build -t revela-ollama .
+docker run -p 11434:11434 revela-ollama
+```
+
+#### 3. Chrome Extension
+
+```bash
+cd chrome-extension
+
+# Install dependencies
+npm install
+
+# Build extension (if needed)
+npm run build
+```
+
+Load in Chrome:
+1. Open `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked"
+4. Select `chrome-extension/dist` directory (or `chrome-extension` if no build step)
+
+### Cloud Deployment
+
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for complete Cloud Run deployment instructions.
+
+Quick deploy:
+
+```bash
+# Set your GCP project
+export PROJECT_ID="your-project-id"
+gcloud config set project $PROJECT_ID
+
+# Deploy from revela-app directory
+cd revela-app
 gcloud run deploy revela-app \
   --source . \
   --region europe-west4 \
@@ -161,162 +117,239 @@ gcloud run deploy revela-app \
   --set-env-vars OLLAMA_HOST=https://your-ollama-service.run.app
 ```
 
-Replace `https://your-ollama-service.run.app` with your actual Ollama service URL.
+## 📁 Project Structure
 
-**Important**: Run this command from the **project root directory** where `Dockerfile` and `pyproject.toml` are located.
+```
+revela/
+├── chrome-extension/          # Chrome extension
+│   ├── public/
+│   │   ├── manifest.json     # Extension manifest (uses logo.png only)
+│   │   └── images/
+│   │       └── logo.png      # Single icon for all uses
+│   └── src/
+│       ├── background/        # Background service worker
+│       ├── content/           # Content scripts (hover detection)
+│       │   ├── content.js    # Main detection and UI logic
+│       │   └── content.css   # Styled hover icons, sidebar, tooltips
+│       └── popup/             # Extension popup UI
+│
+├── revela-app/                # Backend API (Cloud Run CPU)
+│   ├── src/
+│   │   ├── app.py            # Flask routes and API endpoints
+│   │   ├── session_manager.py # Ephemeral session management
+│   │   ├── ollama_client.py  # LLM client
+│   │   └── config_module.py  # Configuration
+│   ├── ui/                    # Web interface assets
+│   ├── Dockerfile            # Cloud Run Dockerfile
+│   ├── pyproject.toml        # Python dependencies (uv)
+│   └── start-app.sh          # Local startup script
+│
+├── ollama-gemma/              # Ollama service (optional)
+│   ├── Dockerfile            # Ollama + Gemma container
+│   └── README.md
+│
+├── DEPLOYMENT.md              # Deployment guide
+├── ARCHITECTURE.md            # System architecture
+└── README.md                  # This file
+```
 
-### Service-to-Service Authentication
+## ✨ Features
 
-If your Ollama backend requires authentication:
+### Chrome Extension
+
+- 🎯 **Automatic Detection**: Recognizes tables and chart images on any webpage
+- 🖼️ **Single Icon**: Uses logo.png only (no icon clutter)
+- ⚡ **Quick Insights**: Hover icon → Click → Instant summary tooltip
+- 💬 **Deep Analyse**: Opens interactive sidebar for conversational exploration
+- 🔒 **Privacy-First**: No tracking, no persistent storage
+- 🌐 **Works Everywhere**: Analyzes data on any website
+
+### Backend API
+
+- 📊 **DuckDB Integration**: In-memory SQL analytics for tables
+- 🔄 **Ephemeral Sessions**: Unique session IDs, auto-expire after 30 min
+- 🧠 **LLM-Powered**: Gemma model for insights generation
+- 🌊 **RESTful API**: Clean endpoints for extension communication
+- 📈 **Summary Statistics**: Automatic table profiling
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/session/start` | POST | Start new analysis session |
+| `/api/quick-insights` | POST | Get instant insights (no session) |
+| `/api/deep-analyse` | POST | Conversational analysis |
+| `/api/session/end` | POST | End session, cleanup resources |
+| `/health` | GET | Health check + active sessions |
+
+## 🛠️ Development
+
+### Prerequisites
+
+- **Python**: 3.11+
+- **Package Manager**: [uv](https://github.com/astral-sh/uv)
+- **Node.js**: 18+ (for extension)
+- **Ollama**: Local or Cloud Run
+- **Docker**: For containerization (optional)
+
+### Backend Development
 
 ```bash
-# Get the service account email
-SERVICE_ACCOUNT=$(gcloud run services describe revela-app \
-  --region europe-west4 \
-  --format 'value(spec.template.spec.serviceAccountName)')
+cd revela-app
 
-# Grant invoker role to access Ollama service
-gcloud run services add-iam-policy-binding ollama-gemma \
-  --region europe-west4 \
-  --member "serviceAccount:$SERVICE_ACCOUNT" \
-  --role "roles/run.invoker"
+# Install new package
+uv add <package-name>
+
+# Run locally
+./start-app.sh
+
+# Run with gunicorn manually
+uv run gunicorn --bind 0.0.0.0:8080 --workers 2 --reload src.app:app
 ```
 
-### Environment Variables
+### Extension Development
 
-Production environment variables in Cloud Run:
+```bash
+cd chrome-extension
 
-| Variable | Description | Example |
+# Install package
+npm install <package-name>
+
+# Development mode
+npm run dev
+```
+
+### Testing Session Management
+
+```bash
+# Start backend
+cd revela-app && ./start-app.sh
+
+# Test session creation
+curl -X POST http://localhost:8080/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-123",
+    "data": {
+      "type": "table",
+      "html": "<table><tr><th>Name</th></tr><tr><td>Test</td></tr></table>"
+    },
+    "url": "http://example.com"
+  }'
+
+# Test quick insights
+curl -X POST http://localhost:8080/api/quick-insights \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "quick-456",
+    "data": {
+      "type": "table",
+      "html": "<table><tr><th>Col1</th><th>Col2</th></tr><tr><td>A</td><td>1</td></tr></table>"
+    },
+    "url": "http://example.com"
+  }'
+```
+
+## 🔧 Configuration
+
+### Backend Environment Variables
+
+| Variable | Description | Default |
 |----------|-------------|---------|
-| `ENVIRONMENT` | Deployment environment | `production` |
-| `OLLAMA_HOST` | Ollama backend URL | `https://ollama.run.app` |
-| `OLLAMA_MODEL` | Model to use | `gemma3:12b-it-qat` |
+| `ENVIRONMENT` | Runtime environment | `development` |
+| `OLLAMA_HOST` | Ollama service URL | `http://localhost:11434` |
+| `PORT` | Server port | `8080` |
 
-## 🔐 Authentication & Security
+### Extension Configuration
 
-The application automatically handles authentication based on environment:
+Update `content.js`:
 
-- **Local** (`ENVIRONMENT=local`): No authentication required
-- **Production** (`ENVIRONMENT=production`): Google Cloud OIDC tokens for service-to-service auth
+```javascript
+// For local development
+const API_ENDPOINT = 'http://localhost:8080';
 
-### Architecture
-
-```
-┌─────────────┐      ┌──────────────┐      ┌─────────────┐
-│   Browser   │─────▶│    Flask     │─────▶│   Ollama    │
-│             │      │     App      │      │   Backend   │
-│  (User)     │◀─────│ (Cloud Run)  │◀─────│ (Cloud Run) │
-└─────────────┘      └──────────────┘      └─────────────┘
-                            │
-                            ▼
-                     ┌──────────────┐
-                     │ OIDC Token   │
-                     │ Generation   │
-                     └──────────────┘
+// For production
+const API_ENDPOINT = 'https://your-backend.run.app';
 ```
 
-- Credentials managed through Google Cloud IAM
-- No API keys in environment variables
-- Secure service-to-service communication
+## 📊 Session Lifecycle
 
-## 📖 Additional Documentation
+1. **Hover Detection** → User hovers over table/chart
+2. **Icon Display** → Hover icon (logo.png) appears
+3. **User Action** → Clicks "Quick Insights" or "Deep Analyse"
+4. **Session Creation** → Unique session ID generated
+5. **Data Extraction** → HTML table or image data sent to backend
+6. **DuckDB Processing** → Table parsed into in-memory database
+7. **LLM Query** → Context sent to Gemma for insights
+8. **Response Display** → Tooltip or sidebar shows results
+9. **Auto-Cleanup** → Session expires after 30 min or manual close
 
-- [Ollama + Gemma Setup](ollama-gemma/README.md) - Docker setup for Ollama backend
+## 🌐 Deployment
 
-## 🧪 Usage
+### Cloud Run Architecture
 
-1. **Start the app** with `./start-app.sh`
-2. **Check extension status** - the app will alert if not installed
-3. **Enter your question** about a chart or table
-4. **Upload an image** (optional) of the chart/table
-5. **Click Analyze** to get AI-powered insights
-6. **View results** streaming in real-time
+```
+┌─────────────────┐
+│ Chrome Extension│
+└────────┬────────┘
+         │ HTTPS
+         ▼
+┌─────────────────┐
+│  Backend API    │ (Cloud Run - CPU)
+│  - Sessions     │ - 2 vCPU, 2GB RAM
+│  - DuckDB       │ - Source deploy
+│  - Orchestration│ - Autoscale 0→N
+└────────┬────────┘
+         │ HTTPS
+         ▼
+┌─────────────────┐
+│ Ollama Service  │ (Local or Cloud Run)
+│  - Gemma Model  │ - Optional GPU
+│  - Inference    │
+└─────────────────┘
+```
+
+**See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions**
+
+### Simple Source Deployment
+
+No build configs needed! Cloud Run builds from source:
+
+```bash
+cd revela-app
+gcloud run deploy revela-app --source .
+```
+
+## 🔒 Security & Privacy
+
+- ✅ **No Persistent Storage**: All data ephemeral
+- ✅ **HTTPS Only**: Encrypted communication
+- ✅ **Service-to-Service Auth**: IAM-based internal calls (optional)
+- ✅ **CORS Protection**: Restricted origins
+- ✅ **Auto-Cleanup**: Sessions destroyed after timeout
+- ✅ **No Tracking**: Zero analytics or user monitoring
 
 ## 🤝 Contributing
 
-This project follows Python best practices:
-- Use `uv` for package management (not `pip`)
-- Use `npm` for Chrome extension dependencies
-- Always run in virtual environment
-- Keep dependencies in `pyproject.toml`
+Contributions welcome! Areas for improvement:
 
-## 📝 Common Commands
+- [ ] Support for more chart types (SVG, Canvas)
+- [ ] Advanced SQL query generation
+- [ ] Multi-table relationship analysis
+- [ ] Export insights to CSV/PDF
+- [ ] Custom model selection
 
-| Task | Command |
-|------|---------|
-| Create venv | `uv venv` |
-| Activate venv | `source .venv/bin/activate` |
-| Install packages | `uv add <package>` |
-| Run app | `uv run application/main.py` |
-| Quick start | `./start-app.sh` |
+## 📝 License
 
-## 🐛 Troubleshooting
+MIT License - see LICENSE file for details
 
-### Flask App Issues
+## 🙏 Acknowledgments
 
-#### Cannot connect to Ollama service
-- **Local**: Ensure Ollama is running on `http://localhost:11434`
-  ```bash
-  curl http://localhost:11434/api/tags
-  ```
-- **Production**: Verify `OLLAMA_HOST` is correct and service is deployed
-- Check `.env` configuration matches your setup
-
-#### Import errors during local development
-```bash
-# Ensure you're in the virtual environment
-source .venv/bin/activate
-
-# Reinstall dependencies
-uv sync
-```
-
-#### Authentication errors in production
-- Verify service account has `roles/run.invoker` permission
-- Check Cloud Run logs:
-  ```bash
-  gcloud run logs read --service revela-app --region europe-west4
-  ```
-
-### Chrome Extension Issues
-
-#### Extension not detected by app
-- The app shows an alert - click "I have installed the extension" to dismiss
-- Verify extension is loaded in `chrome://extensions/`
-- Ensure extension is enabled
-
-#### Extension not working
-1. Go to `chrome://extensions/`
-2. Find Revela and click the refresh icon
-3. Check the browser console for errors (F12)
-
-#### Cannot connect to backend
-- Verify the Flask app is running at `http://localhost:8501`
-- Check extension settings for correct API endpoint
-- Ensure CORS is properly configured
-
-### Development Issues
-
-#### Virtual environment not activating
-```bash
-# Recreate the environment
-uv venv
-source .venv/bin/activate
-```
-
-#### Dependencies not installing
-```bash
-# Update uv
-pip install --upgrade uv
-
-# Clear cache and reinstall
-uv pip install --system --no-cache .
-```
-
-## 📄 License
-
-Part of the Revela project for AI-powered web content analysis.
+- **Google Gemma**: State-of-the-art language model
+- **Ollama**: Simplified LLM deployment
+- **DuckDB**: Fast in-memory analytics
+- **Cloud Run**: Serverless container platform
 
 ---
 
-**Built using Flask, Ollama, and Google Gemma**
+**Built with ❤️ for data enthusiasts**

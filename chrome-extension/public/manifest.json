@@ -1,39 +1,47 @@
 {
   "manifest_version": 3,
-  "name": "Revela - AI Chart & Table Analyzer",
+  "name": "revela",
   "version": "1.0.0",
-  "description": "AI-powered analysis of charts and tables using Gemma",
+  "description": "Instant Data Intelligence for the Web powered by Google Gemma 3",
   "permissions": [
     "activeTab",
     "storage",
     "scripting"
   ],
   "host_permissions": [
-    "http://localhost:*/*"
+    "http://localhost:*/*",
+    "<all_urls>"
   ],
   "action": {
-    "default_popup": "../src/popup/popup.html",
+    "default_popup": "src/popup/popup.html",
     "default_icon": {
-      "16": "images/icon16.png",
-      "32": "images/icon32.png",
-      "48": "images/icon48.png",
-      "128": "images/icon128.png"
+      "16": "images/logo.png",
+      "32": "images/logo.png",
+      "48": "images/logo.png",
+      "128": "images/logo.png"
     }
   },
   "icons": {
-    "16": "images/icon16.png",
-    "32": "images/icon32.png",
-    "48": "images/icon48.png",
-    "128": "images/icon128.png"
+    "16": "images/logo.png",
+    "32": "images/logo.png",
+    "48": "images/logo.png",
+    "128": "images/logo.png"
   },
   "background": {
-    "service_worker": "../src/background/background.js"
+    "service_worker": "src/background/background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["../src/content/content.js"],
-      "css": ["../src/content/content.css"]
+      "js": ["src/utils/markdown.js", "src/content/content.js"],
+      "css": ["src/content/content.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*"],
+      "matches": ["<all_urls>"]
     }
   ]
 }

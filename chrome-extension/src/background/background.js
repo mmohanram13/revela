@@ -1,54 +1,56 @@
 // Background service worker for Revela Chrome Extension
 
+// Default API endpoints
+const PRODUCTION_ENDPOINT = 'https://revela-app-759597171569.europe-west4.run.app';
+const LOCALHOST_ENDPOINT = 'http://localhost:8080';
+
 // Installation listener
 chrome.runtime.onInstalled.addListener((details) => {
   console.log('Revela extension installed:', details.reason);
   
   if (details.reason === 'install') {
-    // Set default settings
+    // Set default settings - use production by default
     chrome.storage.sync.set({
-      apiEndpoint: 'http://localhost:8000',
+      useLocalhost: false,
       autoAnalyze: false
     });
   }
 });
 
-// Message listener
+// Message listener for communication between content script and backend
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Background received message:', request);
   
-  if (request.action === 'analyzeImage') {
-    handleImageAnalysis(request.data)
+  if (request.action === 'analyzeTable') {
+    handleTableAnalysis(request.data)
       .then(result => sendResponse({ success: true, data: result }))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep channel open for async response
   }
   
   if (request.action === 'getSettings') {
-    chrome.storage.sync.get(['apiEndpoint', 'autoAnalyze'], (settings) => {
-      sendResponse({ success: true, data: settings });
+    chrome.storage.sync.get(['useLocalhost', 'autoAnalyze'], (settings) => {
+      const apiEndpoint = settings.useLocalhost ? LOCALHOST_ENDPOINT : PRODUCTION_ENDPOINT;
+      sendResponse({ success: true, data: { ...settings, apiEndpoint } });
     });
     return true;
   }
 });
 
-// Handle image analysis
-async function handleImageAnalysis(imageData) {
+// Handle table analysis
+async function handleTableAnalysis(data) {
   try {
     // Get API endpoint from storage
-    const settings = await chrome.storage.sync.get(['apiEndpoint']);
-    const apiEndpoint = settings.apiEndpoint || 'http://localhost:8000';
+    const settings = await chrome.storage.sync.get(['useLocalhost']);
+    const apiEndpoint = settings.useLocalhost ? LOCALHOST_ENDPOINT : PRODUCTION_ENDPOINT;
     
     // Send to backend API
-    const response = await fetch(`${apiEndpoint}/analyze`, {
+    const response = await fetch(`${apiEndpoint}/api/${data.endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        image: imageData.image,
-        type: imageData.type
-      })
+      body: JSON.stringify(data.payload)
     });
     
     if (!response.ok) {
@@ -63,24 +65,5 @@ async function handleImageAnalysis(imageData) {
     throw error;
   }
 }
-
-// Context menu (optional - for right-click functionality)
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: 'analyzeWithRevela',
-    title: 'Analyze with Revela',
-    contexts: ['image']
-  });
-});
-
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === 'analyzeWithRevela') {
-    // Send message to content script to handle the image
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'analyzeContextImage',
-      imageUrl: info.srcUrl
-    });
-  }
-});
 
 console.log('Revela background service worker loaded');

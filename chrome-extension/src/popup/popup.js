@@ -1,87 +1,100 @@
 // DOM elements
-const analyzeBtn = document.getElementById('analyzeBtn');
-const captureBtn = document.getElementById('captureBtn');
-const settingsLink = document.getElementById('settingsLink');
-const statusDiv = document.getElementById('status');
-const resultsDiv = document.getElementById('results');
-const resultsContent = document.getElementById('resultsContent');
+const backendStatus = document.getElementById('backend-status');
+const localhostToggle = document.getElementById('localhost-toggle');
+const endpointUrl = document.getElementById('endpoint-url');
+const retryButton = document.getElementById('retry-button');
 
-// Show status message
-function showStatus(message, type = 'info') {
-  statusDiv.textContent = message;
-  statusDiv.className = `status ${type}`;
-  statusDiv.classList.remove('hidden');
+// Default API endpoints
+const PRODUCTION_ENDPOINT = 'https://revela-app-759597171569.europe-west4.run.app';
+const LOCALHOST_ENDPOINT = 'http://localhost:8080';
+
+// Get current endpoint
+function getCurrentEndpoint(useLocalhost) {
+  return useLocalhost ? LOCALHOST_ENDPOINT : PRODUCTION_ENDPOINT;
+}
+
+// Update endpoint display
+function updateEndpointDisplay(useLocalhost) {
+  endpointUrl.textContent = getCurrentEndpoint(useLocalhost);
+}
+
+// Initialize toggle state
+async function initToggle() {
+  const settings = await chrome.storage.sync.get(['useLocalhost']);
+  const useLocalhost = settings.useLocalhost || false;
+  localhostToggle.checked = useLocalhost;
+  updateEndpointDisplay(useLocalhost);
+}
+
+// Check backend connectivity
+async function checkBackend() {
+  // Add spinning animation to retry button
+  retryButton.classList.add('spinning');
   
-  // Hide after 3 seconds for success/error
-  if (type === 'success' || type === 'error') {
-    setTimeout(() => {
-      statusDiv.classList.add('hidden');
-    }, 3000);
+  try {
+    const settings = await chrome.storage.sync.get(['useLocalhost']);
+    const useLocalhost = settings.useLocalhost || false;
+    const apiEndpoint = getCurrentEndpoint(useLocalhost);
+    
+    // Update endpoint display
+    updateEndpointDisplay(useLocalhost);
+    
+    // Show connecting status
+    backendStatus.textContent = 'Connecting...';
+    backendStatus.className = 'status-value';
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    
+    const response = await fetch(`${apiEndpoint}/health`, {
+      method: 'GET',
+      signal: controller.signal,
+      cache: 'no-cache',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      backendStatus.textContent = 'Connected';
+      backendStatus.className = 'status-value connected';
+    } else {
+      backendStatus.textContent = 'Error';
+      backendStatus.className = 'status-value disconnected';
+    }
+  } catch (error) {
+    // Only log unexpected errors, not network failures (which are expected when server is down)
+    if (error.name !== 'AbortError' && error.name !== 'TypeError') {
+      console.error('Backend check failed:', error);
+    }
+    backendStatus.textContent = 'Disconnected';
+    backendStatus.className = 'status-value disconnected';
+  } finally {
+    // Remove spinning animation
+    retryButton.classList.remove('spinning');
   }
 }
 
-// Show results
-function showResults(data) {
-  resultsContent.textContent = JSON.stringify(data, null, 2);
-  resultsDiv.classList.remove('hidden');
-}
-
-// Analyze current page
-analyzeBtn.addEventListener('click', async () => {
-  try {
-    showStatus('Analyzing page...', 'info');
-    
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // Send message to content script
-    const response = await chrome.tabs.sendMessage(tab.id, {
-      action: 'analyze'
-    });
-    
-    if (response.success) {
-      showStatus('Analysis complete!', 'success');
-      showResults(response.data);
-    } else {
-      showStatus('Analysis failed: ' + response.error, 'error');
-    }
-  } catch (error) {
-    console.error('Error:', error);
-    showStatus('Error: ' + error.message, 'error');
-  }
+// Toggle event listener
+localhostToggle.addEventListener('change', async (e) => {
+  const useLocalhost = e.target.checked;
+  await chrome.storage.sync.set({ useLocalhost });
+  
+  // Update endpoint display immediately
+  updateEndpointDisplay(useLocalhost);
+  
+  // Recheck backend connection
+  await checkBackend();
 });
 
-// Capture selection
-captureBtn.addEventListener('click', async () => {
-  try {
-    showStatus('Capturing selection...', 'info');
-    
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // Send message to content script
-    const response = await chrome.tabs.sendMessage(tab.id, {
-      action: 'capture'
-    });
-    
-    if (response.success) {
-      showStatus('Capture complete!', 'success');
-      showResults(response.data);
-    } else {
-      showStatus('Capture failed: ' + response.error, 'error');
-    }
-  } catch (error) {
-    console.error('Error:', error);
-    showStatus('Error: ' + error.message, 'error');
-  }
+// Retry button event listener
+retryButton.addEventListener('click', async () => {
+  await checkBackend();
 });
 
-// Settings link
-settingsLink.addEventListener('click', (e) => {
-  e.preventDefault();
-  // TODO: Open settings page
-  showStatus('Settings coming soon!', 'info');
-});
-
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Revela popup loaded');
-});
+// Initialize on load
+initToggle();
+checkBackend();

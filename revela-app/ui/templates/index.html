@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>revela - Transform data into understanding</title>
+    <title>revela</title>
     <link rel="icon" type="image/png" href="data:image/png;base64,{{ logo_base64 }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
@@ -16,13 +16,13 @@
                 <img src="data:image/png;base64,{{ logo_base64 }}" alt="Revela Logo" class="logo">
                 <div class="title-container">
                     <h1>revela</h1>
-                    <p class="subtitle">Transform data into understanding</p>
+                    <p class="subtitle">Instant Data Intelligence for the Web powered by Google Gemma 3</p>
                 </div>
             </div>
             {% else %}
             <div class="title-container">
                 <h1>revela</h1>
-                <p class="subtitle">Transform data into understanding</p>
+                <p class="subtitle">Instant Data Intelligence for the Web powered by Google Gemma 3</p>
             </div>
             {% endif %}
         </header>
@@ -61,25 +61,25 @@
             <h2>Analyze Chart or Table</h2>
             
             <form id="analysis-form">
-                <!-- Prompt Input -->
+                <!-- Omni Search Box -->
                 <div class="form-group">
-                    <label for="prompt">Enter your question or analysis request:</label>
+                    <label for="prompt">Ask anything about your chart or table:</label>
                     <textarea 
                         id="prompt" 
                         name="prompt" 
-                        rows="5" 
-                        placeholder="e.g., What trends do you see in this chart? Summarize this table data..."
+                        rows="3" 
+                        class="omni-search"
+                        placeholder="What trends do you see? Summarize this data... Ask anything!"
                         required
                     ></textarea>
                 </div>
 
                 <!-- Image Upload Section -->
                 <div class="form-group">
-                    <h3>Add Image (Optional)</h3>
                     <div class="upload-container">
                         <div class="upload-method">
                             <label for="image-upload" class="upload-label">
-                                <strong>Upload Image</strong>
+                                📎 <strong>Paste to attach image or upload</strong>
                             </label>
                             <input 
                                 type="file" 
@@ -88,7 +88,7 @@
                                 accept="image/png,image/jpeg,image/jpg"
                             >
                             <div class="upload-hint">
-                                or paste image (Ctrl+V / Cmd+V)
+                                Paste (Ctrl+V / Cmd+V) or choose file, then click Analyze
                             </div>
                         </div>
                     </div>

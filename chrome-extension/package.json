@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "AI-powered Chrome extension for analyzing charts and tables",
   "scripts": {
-    "dev": "echo 'Development mode - load extension from chrome://extensions'",
-    "build": "echo 'No build step required for manifest v3'",
-    "lint": "eslint *.js"
+    "build": "npm run clean && npm run copy",
+    "clean": "rm -rf dist",
+    "copy": "mkdir -p dist && cp -r public/* dist/ && cp -r src dist/",
+    "lint": "eslint src/**/*.js"
   },
   "keywords": [
     "chrome-extension",
