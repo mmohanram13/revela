@@ -186,12 +186,14 @@ npm install
 npm run build
 ```
 
-**Load in Chrome:**
+**Install Extension:**
 
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable "Developer mode" (toggle in top right)
-3. Click "Load unpacked"
-4. Select the `chrome-extension/dist` directory
+1. Download the extension: [revela_chrome_extension.zip](https://github.com/mmohanram13/revela/releases/download/0.0.1/revela_chrome_extension.zip)
+2. Extract the zip file
+3. Open Chrome and navigate to `chrome://extensions/`
+4. Enable "Developer mode" (toggle in top right)
+5. Click "Load unpacked"
+6. Select the extracted extension folder
 
 ## Production Deployment
 
